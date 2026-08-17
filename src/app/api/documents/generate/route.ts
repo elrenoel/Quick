@@ -1,0 +1,272 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { db, user, documents, flashcards, quizQuestions } from "@/db";
+import { eq } from "drizzle-orm";
+import { extractPdfText } from "@/lib/pdf";
+import { generateStudyMaterials } from "@/lib/ai";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB
+const DAILY_LIMIT = 5;
+
+function isValidPdfHeader(buffer: ArrayBuffer): boolean {
+  if (buffer.byteLength < 5) return false;
+  const header = new Uint8Array(buffer.slice(0, 5));
+  return (
+    header[0] === 0x25 &&
+    header[1] === 0x50 &&
+    header[2] === 0x44 &&
+    header[3] === 0x46 &&
+    header[4] === 0x2d
+  );
+}
+
+/**
+ * Endpoint generate untuk user yang sudah login.
+ * Mengecek daily limit sebelum memanggil AI.
+ * Menyimpan hasil langsung ke database.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // 1. Verifikasi sesi
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session?.user) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Silakan masuk (login) terlebih dahulu untuk generate materi.",
+          requireAuth: true,
+        },
+        { status: 401 }
+      );
+    }
+
+    // 2. Ambil data user dari DB untuk mengecek kuota harian
+    const [userRow] = await db
+      .select({
+        id: user.id,
+        generationCountToday: user.generationCountToday,
+        lastGenerationDate: user.lastGenerationDate,
+      })
+      .from(user)
+      .where(eq(user.id, session.user.id))
+      .limit(1);
+
+    if (!userRow) {
+      return NextResponse.json(
+        { success: false, error: "Data user tidak ditemukan." },
+        { status: 404 }
+      );
+    }
+
+    // 3. Cek dan reset daily limit
+    const today = new Date().toISOString().split("T")[0]; // format "2026-08-18"
+    const isNewDay = userRow.lastGenerationDate !== today;
+    const currentCount = isNewDay ? 0 : userRow.generationCountToday;
+
+    if (currentCount >= DAILY_LIMIT) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Limit harian ${DAILY_LIMIT}x generate sudah tercapai. Coba lagi besok!`,
+          limitReached: true,
+          remainingToday: 0,
+          resetDate: today,
+        },
+        { status: 429 }
+      );
+    }
+
+    // 4. Parse form data dan validasi file
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+    const customTitle = (formData.get("title") as string) || null;
+
+    if (!file) {
+      return NextResponse.json(
+        { success: false, error: "File PDF tidak ditemukan dalam request." },
+        { status: 400 }
+      );
+    }
+
+    const fileName = file.name || "Dokumen Tanpa Judul";
+    const title =
+      customTitle ||
+      fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ").trim() ||
+      "Materi Pembelajaran";
+
+    const lowerName = fileName.toLowerCase();
+    const isPdf = file.type === "application/pdf" || lowerName.endsWith(".pdf");
+
+    if (!isPdf) {
+      const isOffice =
+        lowerName.endsWith(".doc") ||
+        lowerName.endsWith(".docx") ||
+        lowerName.endsWith(".ppt") ||
+        lowerName.endsWith(".pptx");
+
+      const errorMsg = isOffice
+        ? "Format Word / PowerPoint belum didukung langsung. Silakan Export ke PDF terlebih dahulu."
+        : "Format file tidak didukung. Mohon upload file PDF (.pdf).";
+
+      return NextResponse.json({ success: false, error: errorMsg }, { status: 400 });
+    }
+
+    const buffer = await file.arrayBuffer();
+
+    if (buffer.byteLength === 0) {
+      return NextResponse.json(
+        { success: false, error: "File PDF kosong (0 byte)." },
+        { status: 400 }
+      );
+    }
+
+    if (buffer.byteLength > MAX_FILE_SIZE_BYTES) {
+      const sizeMb = (buffer.byteLength / (1024 * 1024)).toFixed(1);
+      return NextResponse.json(
+        { success: false, error: `Ukuran file terlalu besar (${sizeMb} MB). Maksimal 15 MB.` },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidPdfHeader(buffer)) {
+      return NextResponse.json(
+        { success: false, error: "File bukan PDF yang valid atau telah rusak (corrupt)." },
+        { status: 400 }
+      );
+    }
+
+    // 5. Ekstraksi teks
+    const { text, totalPages, wordCount } = await extractPdfText(buffer);
+
+    if (!text || text.trim().length === 0 || wordCount === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Tidak ditemukan teks dalam PDF ini. Kemungkinan hasil scan gambar atau diproteksi password.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (totalPages > 2 && wordCount < 20) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Dokumen ${totalPages} halaman namun teks sangat minim (${wordCount} kata). Gunakan OCR terlebih dahulu.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // 6. Generate dengan AI
+    const aiResult = await generateStudyMaterials(text);
+
+    // 7. Simpan ke database
+    const [insertedDoc] = await db
+      .insert(documents)
+      .values({
+        userId: session.user.id,
+        title,
+        rawText: text,
+        sessionId: null,
+      })
+      .returning();
+
+    await db.insert(flashcards).values(
+      aiResult.flashcards.map((c) => ({
+        documentId: insertedDoc.id,
+        term: c.term,
+        definition: c.definition,
+      }))
+    );
+
+    await db.insert(quizQuestions).values(
+      aiResult.quiz.map((q) => ({
+        documentId: insertedDoc.id,
+        question: q.question,
+        options: q.options,
+        correctIndex: q.correct_index,
+      }))
+    );
+
+    // 8. Update daily limit counter
+    const newCount = currentCount + 1;
+    await db
+      .update(user)
+      .set({
+        generationCountToday: newCount,
+        lastGenerationDate: today,
+        updatedAt: new Date(),
+      })
+      .where(eq(user.id, session.user.id));
+
+    return NextResponse.json(
+      {
+        success: true,
+        document: {
+          id: insertedDoc.id,
+          title: insertedDoc.title,
+          totalPages,
+          wordCount,
+          createdAt: insertedDoc.createdAt,
+        },
+        remainingToday: DAILY_LIMIT - newCount,
+        totalGeneratedToday: newCount,
+        message: "Materi berhasil di-generate dan disimpan.",
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Error in POST /api/documents/generate:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Terjadi kesalahan internal server.",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * GET /api/documents/generate — Ambil info kuota harian user
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session?.user) {
+      return NextResponse.json({ remainingToday: null, requireAuth: true }, { status: 401 });
+    }
+
+    const [userRow] = await db
+      .select({
+        generationCountToday: user.generationCountToday,
+        lastGenerationDate: user.lastGenerationDate,
+      })
+      .from(user)
+      .where(eq(user.id, session.user.id))
+      .limit(1);
+
+    if (!userRow) {
+      return NextResponse.json({ remainingToday: DAILY_LIMIT });
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const isNewDay = userRow.lastGenerationDate !== today;
+    const currentCount = isNewDay ? 0 : userRow.generationCountToday;
+    const remainingToday = Math.max(0, DAILY_LIMIT - currentCount);
+
+    return NextResponse.json({
+      remainingToday,
+      usedToday: currentCount,
+      dailyLimit: DAILY_LIMIT,
+    });
+  } catch (error) {
+    console.error("Error in GET /api/documents/generate:", error);
+    return NextResponse.json({ remainingToday: DAILY_LIMIT });
+  }
+}
