@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { db, documents, flashcards, quizQuestions } from "@/db";
+import { db, documents, flashcards, quizQuestions, quizSets } from "@/db";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -75,11 +75,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Insert quiz questions
+    // 5. Insert quiz questions (terhubung ke quiz set default "Set 1")
     if (body.quiz.length > 0) {
+      const [quizSet] = await db
+        .insert(quizSets)
+        .values({ documentId: insertedDoc.id, label: "Set 1" })
+        .returning({ id: quizSets.id });
+
       await db.insert(quizQuestions).values(
         body.quiz.map((q) => ({
           documentId: insertedDoc.id,
+          quizSetId: quizSet.id,
           question: q.question,
           options: q.options,
           correctIndex: q.correct_index,

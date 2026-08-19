@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, documents, flashcards, quizQuestions } from "@/db";
-import { eq } from "drizzle-orm";
+import { db, documents, flashcards, quizQuestions, quizSets } from "@/db";
+import { eq, asc } from "drizzle-orm";
 import { generateStudyMaterials } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
@@ -57,9 +57,25 @@ export async function POST(
       );
     }
 
-    // 3. Bersihkan flashcard/quiz lama jika ada (untuk mencegah duplikasi jika di-generate ulang)
+    // 3. Bersihkan flashcard lama jika ada (untuk mencegah duplikasi jika di-generate ulang)
     await db.delete(flashcards).where(eq(flashcards.documentId, id));
-    await db.delete(quizQuestions).where(eq(quizQuestions.documentId, id));
+
+    // Ambil set kuis pertama (atau buat "Set 1" kalau belum ada), lalu bersihkan soalnya
+    let [quizSet] = await db
+      .select({ id: quizSets.id })
+      .from(quizSets)
+      .where(eq(quizSets.documentId, id))
+      .orderBy(asc(quizSets.createdAt))
+      .limit(1);
+
+    if (!quizSet) {
+      [quizSet] = await db
+        .insert(quizSets)
+        .values({ documentId: id, label: "Set 1" })
+        .returning({ id: quizSets.id });
+    }
+
+    await db.delete(quizQuestions).where(eq(quizQuestions.quizSetId, quizSet.id));
 
     // 4. Simpan Flashcards baru
     if (generatedCards.length > 0) {
@@ -77,6 +93,7 @@ export async function POST(
       await db.insert(quizQuestions).values(
         generatedQuiz.map((q) => ({
           documentId: id,
+          quizSetId: quizSet.id,
           question: q.question.trim(),
           options: q.options.map((opt) => opt.trim()),
           correctIndex: q.correct_index,

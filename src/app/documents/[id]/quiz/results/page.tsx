@@ -13,6 +13,7 @@ import {
   Trophy,
   Minus,
 } from "lucide-react";
+import { formatDateTime } from "@/lib/format-date";
 
 interface ReviewItem {
   questionId: string;
@@ -29,6 +30,7 @@ interface QuizResult {
   percentage: number;
   documentTitle: string;
   review: ReviewItem[];
+  createdAt?: string;
 }
 
 const OPTION_LABELS = ["A", "B", "C", "D"];
@@ -137,6 +139,12 @@ export default function QuizResultsPage() {
           </p>
 
           <ScoreGrade percentage={result.percentage} />
+
+          {result.createdAt && (
+            <p className="text-[11px] text-neutral-400 font-mono mt-3">
+              Dikerjakan pada {formatDateTime(result.createdAt)}
+            </p>
+          )}
 
           {/* Mini Stats Row */}
           <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-neutral-100 text-xs">

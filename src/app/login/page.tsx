@@ -10,6 +10,8 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const noticeMessage = searchParams.get("message");
+  const googleError = searchParams.get("google_error");
+  const oauthError = searchParams.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,6 +26,9 @@ function LoginForm() {
       await signIn.social({
         provider: "google",
         callbackURL: "/",
+        // Fallback for unexpected OAuth failures — the register-flow redirect
+        // with google_error=already_registered is handled by the notice below.
+        errorCallbackURL: "/login",
       });
     } catch (err: unknown) {
       setErrorMessage(
@@ -112,6 +117,22 @@ function LoginForm() {
         <div className="mb-6 flex items-start gap-2.5 text-xs text-amber-900 bg-amber-50 border border-amber-200 p-3.5 rounded-xl">
           <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-700" />
           <span>{noticeMessage}</span>
+        </div>
+      )}
+
+      {googleError === "already_registered" && (
+        <div className="mb-6 flex items-start gap-2.5 text-xs text-amber-900 bg-amber-50 border border-amber-200 p-3.5 rounded-xl">
+          <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-700" />
+          <span>
+            Akun dengan email ini sudah terdaftar. Silakan masuk untuk melanjutkan.
+          </span>
+        </div>
+      )}
+
+      {oauthError && googleError !== "already_registered" && (
+        <div className="mb-6 flex items-start gap-2.5 text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3.5 rounded-xl">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>Gagal masuk dengan Google. Silakan coba lagi.</span>
         </div>
       )}
 

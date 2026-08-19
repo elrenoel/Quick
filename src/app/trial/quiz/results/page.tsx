@@ -13,6 +13,7 @@ import {
   LogIn,
   UserPlus,
 } from "lucide-react";
+import { formatDateTime } from "@/lib/format-date";
 
 interface ReviewItem {
   question: string;
@@ -28,6 +29,7 @@ interface QuizResult {
   percentage: number;
   documentTitle: string;
   review: ReviewItem[];
+  createdAt?: string;
 }
 
 const OPTION_LABELS = ["A", "B", "C", "D"];
@@ -163,6 +165,12 @@ export default function TrialQuizResultsPage() {
             </span>
             <ScoreGrade percentage={result.percentage} />
           </div>
+
+          {result.createdAt && (
+            <p className="text-[11px] text-neutral-400 font-mono mb-6">
+              Dikerjakan pada {formatDateTime(result.createdAt)}
+            </p>
+          )}
 
           {/* Quick Stat Pill Grid */}
           <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto mb-6">

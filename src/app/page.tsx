@@ -18,21 +18,24 @@ import {
 } from "lucide-react";
 import { getOrCreateSessionId } from "@/lib/session";
 import { useSession, signOut } from "@/lib/auth-client";
+import { useI18n } from "@/lib/i18n";
+import LanguageToggle from "@/components/LanguageToggle";
 
 const MAX_FILE_SIZE_MB = 15;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
-// ─── Loading overlay step definitions ─────────────────────────────────────
-const UPLOAD_STEPS = [
-  { label: "Mengunggah file PDF...", detail: "Mentransfer dokumen ke server" },
-  { label: "Mengekstrak teks dari PDF...", detail: "Membaca isi halaman dan slide" },
-  { label: "AI sedang menganalisis materi...", detail: "Mengidentifikasi konsep & istilah penting" },
-  { label: "Menyusun flashcard & soal kuis...", detail: "Merumuskan opsi pilihan ganda" },
-  { label: "Menyimpan ke database...", detail: "Hampir selesai!" },
-];
-
 function LoadingOverlay({ step }: { step: number }) {
+  const { t } = useI18n();
   const [seconds, setSeconds] = useState(0);
+
+  // ─── Loading overlay step definitions ─────────────────────────────────────
+  const UPLOAD_STEPS = [
+    { label: t("loading.step1"), detail: t("loading.step1Detail") },
+    { label: t("loading.step2"), detail: t("loading.step2Detail") },
+    { label: t("loading.step3"), detail: t("loading.step3Detail") },
+    { label: t("loading.step4"), detail: t("loading.step4Detail") },
+    { label: t("loading.step5"), detail: t("loading.step5Detail") },
+  ];
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -58,9 +61,7 @@ function LoadingOverlay({ step }: { step: number }) {
 
         {/* Dynamic subtext based on elapsed time */}
         <p className="text-xs text-neutral-500 mb-6 min-h-[32px] flex items-center justify-center">
-          {seconds > 10
-            ? "Materi cukup padat, AI sedang menyelesaikan perumusan kuis..."
-            : current.detail}
+          {seconds > 10 ? t("loading.longProcessing") : current.detail}
         </p>
 
         {/* Progress bar */}
@@ -90,11 +91,11 @@ function LoadingOverlay({ step }: { step: number }) {
         {/* Real-time seconds counter */}
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-100 border border-neutral-200 text-[11px] font-mono text-neutral-600">
           <Clock className="w-3 h-3 text-neutral-500" />
-          <span>Sedang memproses: {seconds} detik</span>
+          <span>{t("loading.seconds", { seconds })}</span>
         </div>
 
         <p className="text-[11px] text-neutral-400 mt-4 font-mono">
-          Jangan tutup atau refresh halaman ini...
+          {t("loading.dontClose")}
         </p>
       </div>
     </div>
@@ -104,9 +105,11 @@ function LoadingOverlay({ step }: { step: number }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const { data: session, isPending: isSessionPending } = useSession();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentName, setDocumentName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [loadingStep, setLoadingStep] = useState<number>(-1); // -1 = not loading
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -193,8 +196,8 @@ export default function LandingPage() {
         fileName.endsWith(".pptx");
 
       const msg = isOffice
-        ? "Format Word / PowerPoint belum didukung langsung. Silakan buka file tersebut dan pilih 'Save As / Export to PDF' terlebih dahulu."
-        : "Format file tidak didukung. Mohon upload file dengan format PDF (.pdf).";
+        ? t("error.officeFormat")
+        : t("error.unsupportedFormat");
 
       setErrorMessage(msg);
       setSelectedFile(null);
@@ -202,7 +205,7 @@ export default function LandingPage() {
     }
 
     if (file.size === 0) {
-      setErrorMessage("File PDF kosong (0 byte). Silakan pilih file dokumen yang valid.");
+      setErrorMessage(t("error.emptyPdf"));
       setSelectedFile(null);
       return false;
     }
@@ -210,7 +213,7 @@ export default function LandingPage() {
     if (file.size > MAX_FILE_SIZE_BYTES) {
       const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
       setErrorMessage(
-        `Ukuran file terlalu besar (${sizeMb} MB). Maksimal ukuran file yang didukung adalah ${MAX_FILE_SIZE_MB} MB.`
+        t("error.fileTooLarge", { size: sizeMb, max: MAX_FILE_SIZE_MB })
       );
       setSelectedFile(null);
       return false;
@@ -218,6 +221,13 @@ export default function LandingPage() {
 
     setErrorMessage(null);
     setSelectedFile(file);
+
+    // Auto-fill nama dokumen dari nama file (tanpa ekstensi) jika masih kosong
+    if (!documentName.trim()) {
+      const baseName = file.name.replace(/\.[^/.]+$/, "").trim();
+      if (baseName) setDocumentName(baseName);
+    }
+
     return true;
   };
 
@@ -244,7 +254,7 @@ export default function LandingPage() {
 
   const handleStartUpload = async () => {
     if (!selectedFile) {
-      setErrorMessage("Silakan pilih file PDF terlebih dahulu atau coba mode demo.");
+      setErrorMessage(t("error.selectFileFirst"));
       return;
     }
 
@@ -257,8 +267,7 @@ export default function LandingPage() {
       // Percobaan ke-2+: Jangan panggil API, langsung arahkan ke login
       if (hasUsedTrial) {
         router.push(
-          "/login?message=" +
-            encodeURIComponent("Login dulu untuk generate lagi")
+          "/login?message=" + encodeURIComponent(t("error.loginToGenerateAgain"))
         );
         return;
       }
@@ -270,6 +279,7 @@ export default function LandingPage() {
       try {
         const formData = new FormData();
         formData.append("file", selectedFile);
+        formData.append("title", documentName.trim());
 
         setLoadingStep(1); // Mengekstrak teks & analisis AI
         const trialRes = await fetch("/api/trial/generate", {
@@ -281,7 +291,7 @@ export default function LandingPage() {
 
         if (!trialRes.ok) {
           const err = await trialRes.json().catch(() => ({}));
-          throw new Error(err.error || "Gagal memproses trial generate.");
+          throw new Error(err.error || t("error.trialGenerateFailed"));
         }
 
         const trialData = await trialRes.json();
@@ -312,9 +322,7 @@ export default function LandingPage() {
       } catch (err: unknown) {
         setLoadingStep(-1);
         setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : "Terjadi kesalahan pada mode trial. Silakan coba lagi."
+          err instanceof Error ? err.message : t("error.trialError")
         );
         return;
       }
@@ -327,6 +335,7 @@ export default function LandingPage() {
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
+      formData.append("title", documentName.trim());
 
       setLoadingStep(1); // Mengekstrak teks & validasi kuota
 
@@ -340,16 +349,14 @@ export default function LandingPage() {
       if (!generateRes.ok) {
         const err = await generateRes.json().catch(() => ({}));
         if (generateRes.status === 429) {
-          throw new Error(
-            err.error || "Limit harian tercapai, coba lagi besok"
-          );
+          throw new Error(err.error || t("error.quotaReached"));
         }
-        throw new Error(err.error || "Gagal menghasilkan flashcard dan kuis.");
+        throw new Error(err.error || t("error.generateFailed"));
       }
 
       const generateData = await generateRes.json();
       const docId: string = generateData.document?.id;
-      if (!docId) throw new Error("Respons server tidak memiliki ID dokumen.");
+      if (!docId) throw new Error(t("error.noDocumentId"));
 
       setLoadingStep(3); // Menyusun flashcard & kuis
       setLoadingStep(4); // Menyimpan ke DB
@@ -361,7 +368,7 @@ export default function LandingPage() {
     } catch (err: unknown) {
       setLoadingStep(-1);
       setErrorMessage(
-        err instanceof Error ? err.message : "Terjadi kesalahan. Silakan coba lagi."
+        err instanceof Error ? err.message : t("error.generic")
       );
     }
   };
@@ -385,12 +392,14 @@ export default function LandingPage() {
             </Link>
 
             <div className="flex items-center gap-3">
+              <LanguageToggle />
+
               <Link
                 href="/documents/demo-os-memory/flashcards"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition"
               >
                 <Sparkles className="w-3.5 h-3.5 text-neutral-600" />
-                <span>Demo</span>
+                <span>{t("nav.demo")}</span>
               </Link>
 
               {/* Auth Buttons / User Profile */}
@@ -403,7 +412,7 @@ export default function LandingPage() {
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition"
                       >
                         <FolderOpen className="w-3.5 h-3.5 text-neutral-600" />
-                        <span>Riwayat</span>
+                        <span>{t("nav.history")}</span>
                       </Link>
                       <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 border border-neutral-200 text-xs font-medium text-neutral-800">
                         <UserIcon className="w-3.5 h-3.5 text-neutral-600" />
@@ -414,11 +423,11 @@ export default function LandingPage() {
                       <button
                         onClick={handleLogout}
                         disabled={isLoggingOut}
-                        title="Keluar dari akun"
+                        title={t("nav.logoutTitle")}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition disabled:opacity-50 cursor-pointer"
                       >
                         <LogOut className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Keluar</span>
+                        <span className="hidden sm:inline">{t("nav.logout")}</span>
                       </button>
                     </div>
                   ) : (
@@ -427,13 +436,13 @@ export default function LandingPage() {
                         href="/login"
                         className="px-3 py-1.5 text-xs font-medium text-neutral-700 hover:text-neutral-900 transition"
                       >
-                        Masuk
+                        {t("nav.login")}
                       </Link>
                       <Link
                         href="/register"
                         className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 transition shadow-2xs"
                       >
-                        Daftar
+                        {t("nav.register")}
                       </Link>
                     </div>
                   )}
@@ -449,7 +458,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-700 border border-neutral-200">
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Active Recall Generator dari PDF</span>
+              <span>{t("upload.badge")}</span>
             </div>
 
             {session?.user && quotaInfo && (
@@ -468,7 +477,10 @@ export default function LandingPage() {
                   }`}
                 />
                 <span>
-                  {quotaInfo.remainingToday}/{quotaInfo.dailyLimit} generate tersisa hari ini
+                  {t("upload.quotaRemaining", {
+                    remaining: quotaInfo.remainingToday,
+                    limit: quotaInfo.dailyLimit,
+                  })}
                 </span>
               </div>
             )}
@@ -476,11 +488,11 @@ export default function LandingPage() {
 
           {/* Hero Headline */}
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-neutral-900 max-w-2xl mb-4 leading-[1.15]">
-            Ubah materi PDF kuliah jadi flashcard &amp; kuis otomatis.
+            {t("upload.title")}
           </h1>
 
           <p className="text-neutral-600 text-base sm:text-lg max-w-xl mb-10 leading-relaxed font-normal">
-            Tinggalkan cara baca pasif. Cukup upload PDF materi atau slide kuliah, AI akan mengekstrak konsep penting menjadi kartu belajar dan soal latihan interaktif.
+            {t("upload.subtitle")}
           </p>
 
           {/* Upload Container Box */}
@@ -518,21 +530,35 @@ export default function LandingPage() {
                       <span className="truncate max-w-xs">{selectedFile.name}</span>
                     </div>
                     <p className="text-xs text-neutral-500">
-                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Klik untuk mengganti file
+                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • {t("upload.fileSelected")}
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-neutral-900">
-                      Tarik file PDF ke sini, atau <span className="underline underline-offset-2">pilih file</span>
+                      {t("upload.dropTitle")}
                     </p>
                     <p className="text-xs text-neutral-500">
-                      Mendukung slide kuliah, ebook, dan catatan PDF (maks 15 MB)
+                      {t("upload.dropHint")}
                     </p>
                   </div>
                 )}
               </div>
             </div>
+
+            {/* Nama Dokumen (Opsional) */}
+            <input
+              type="text"
+              value={documentName}
+              onChange={(e) => setDocumentName(e.target.value)}
+              placeholder={t("upload.documentName")}
+              disabled={isUploading}
+              maxLength={200}
+              className="mt-4 w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition disabled:opacity-50"
+            />
+            <p className="mt-1.5 text-[11px] text-neutral-400">
+              {t("upload.documentNameHint")}
+            </p>
 
             {errorMessage && (
               <div className="mt-4 flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3 rounded-lg">
@@ -549,7 +575,7 @@ export default function LandingPage() {
                 className="flex-1 py-3 px-5 rounded-xl bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 shadow-xs"
               >
                 <>
-                  <span>Generate Flashcard &amp; Quiz</span>
+                  <span>{t("upload.submit")}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               </button>
@@ -558,12 +584,12 @@ export default function LandingPage() {
 
           {/* Demo Fast Link */}
           <div className="flex items-center gap-2 text-xs text-neutral-500">
-            <span>Ingin melihat tampilan hasil langsung?</span>
+            <span>{t("upload.demoPrompt")}</span>
             <Link
               href="/documents/demo-os-memory/flashcards"
               className="font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-700 transition inline-flex items-center gap-1"
             >
-              Buka Demo Materi Kuliah OS <ArrowRight className="w-3 h-3" />
+              {t("upload.demoLink")} <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
 
@@ -573,9 +599,9 @@ export default function LandingPage() {
               <div className="w-7 h-7 rounded-md bg-neutral-100 border border-neutral-200 text-xs font-mono font-bold flex items-center justify-center text-neutral-800">
                 1
               </div>
-              <h3 className="font-semibold text-neutral-900 text-sm">Upload PDF</h3>
+              <h3 className="font-semibold text-neutral-900 text-sm">{t("steps.1Title")}</h3>
               <p className="text-xs text-neutral-600 leading-relaxed">
-                Upload file PDF materi kuliah Anda. Sistem akan mengekstrak poin penting secara instan.
+                {t("steps.1Desc")}
               </p>
             </div>
 
@@ -583,9 +609,9 @@ export default function LandingPage() {
               <div className="w-7 h-7 rounded-md bg-neutral-100 border border-neutral-200 text-xs font-mono font-bold flex items-center justify-center text-neutral-800">
                 2
               </div>
-              <h3 className="font-semibold text-neutral-900 text-sm">Review Flashcard</h3>
+              <h3 className="font-semibold text-neutral-900 text-sm">{t("steps.2Title")}</h3>
               <p className="text-xs text-neutral-600 leading-relaxed">
-                Pelajari konsep penting dengan kartu flashcard interaktif satu per satu.
+                {t("steps.2Desc")}
               </p>
             </div>
 
@@ -593,9 +619,9 @@ export default function LandingPage() {
               <div className="w-7 h-7 rounded-md bg-neutral-100 border border-neutral-200 text-xs font-mono font-bold flex items-center justify-center text-neutral-800">
                 3
               </div>
-              <h3 className="font-semibold text-neutral-900 text-sm">Uji Lewat Kuis</h3>
+              <h3 className="font-semibold text-neutral-900 text-sm">{t("steps.3Title")}</h3>
               <p className="text-xs text-neutral-600 leading-relaxed">
-                Kerjakan soal pilihan ganda hasil AI dan evaluasi pemahaman Anda lewat skor akhir.
+                {t("steps.3Desc")}
               </p>
             </div>
           </div>
@@ -604,8 +630,8 @@ export default function LandingPage() {
         {/* Minimal Footer */}
         <footer className="border-t border-neutral-200 bg-white py-6 text-center text-xs text-neutral-500">
           <div className="max-w-4xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span>Quick — AI Flashcard &amp; Quiz App</span>
-            <span className="text-neutral-400">Stage 6.5: Auth &amp; Daily Limit</span>
+            <span>{t("footer.tagline")}</span>
+            <span className="text-neutral-400">{t("footer.stage")}</span>
           </div>
         </footer>
       </div>

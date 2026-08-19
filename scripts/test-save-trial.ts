@@ -6,7 +6,7 @@ if (typeof dns.setDefaultResultOrder === "function") {
 import * as dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 
-import { db, user, documents, flashcards, quizQuestions } from "../src/db";
+import { db, user, documents, flashcards, quizQuestions, quizSets } from "../src/db";
 import { eq } from "drizzle-orm";
 
 async function testSaveTrial() {
@@ -86,11 +86,17 @@ async function testSaveTrial() {
   console.log(`   💡 Berhasil menyimpan ${insertedCards.length} flashcards.`);
 
   console.log("\n▶️ 3. Menyimpan quiz questions terkait...");
+  const [quizSet] = await db
+    .insert(quizSets)
+    .values({ documentId: insertedDoc.id, label: "Set 1" })
+    .returning({ id: quizSets.id });
+
   const insertedQuiz = await db
     .insert(quizQuestions)
     .values(
       trialPayload.quiz.map((q) => ({
         documentId: insertedDoc.id,
+        quizSetId: quizSet.id,
         question: q.question,
         options: q.options,
         correctIndex: q.correct_index,

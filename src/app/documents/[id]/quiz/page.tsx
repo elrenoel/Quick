@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { MOCK_DOCUMENT } from "@/lib/mock-data";
@@ -10,14 +10,22 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { getOrCreateSessionId } from "@/lib/session";
+import SubmitConfirmDialog from "@/components/SubmitConfirmDialog";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface QuizQuestion {
   id: string;
   question: string;
   options: string[];
+}
+
+interface QuizSetOption {
+  id: string;
+  label: string;
+  questionCount: number;
 }
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
@@ -48,12 +56,48 @@ export default function QuizPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [sets, setSets] = useState<QuizSetOption[]>([]);
+  const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
+  const [selectedSetLabel, setSelectedSetLabel] = useState<string | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [regenerateError, setRegenerateError] = useState<string | null>(null);
+  const [regenerateMessage, setRegenerateMessage] = useState<string | null>(null);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const optionLabels = ["A", "B", "C", "D"];
+
+  // ── Load quiz questions untuk set tertentu (default: set pertama) ──────────
+  const loadQuiz = useCallback(
+    async (targetSetId?: string) => {
+      try {
+        const query = targetSetId ? `?setId=${targetSetId}` : "";
+        const res = await fetch(`/api/documents/${docId}/quiz${query}`);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `Server error ${res.status}`);
+        }
+        const data = await res.json();
+        if (!data.quiz || data.quiz.length === 0) {
+          throw new Error("Tidak ada soal kuis yang ditemukan untuk dokumen ini.");
+        }
+        setQuestions(data.quiz);
+        setSets(data.sets || []);
+        setSelectedSetId(data.quizSetId || null);
+        setSelectedSetLabel(data.quizSetLabel || null);
+        setDocumentTitle(data.documentTitle || "Materi Pembelajaran");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Gagal memuat soal kuis.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [docId]
+  );
 
   // ── Fetch quiz questions ───────────────────────────────────────────────────
   useEffect(() => {
@@ -69,28 +113,10 @@ export default function QuizPage() {
       return;
     }
 
-    async function fetchQuiz() {
-      try {
-        const res = await fetch(`/api/documents/${docId}/quiz`);
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || `Server error ${res.status}`);
-        }
-        const data = await res.json();
-        if (!data.quiz || data.quiz.length === 0) {
-          throw new Error("Tidak ada soal kuis yang ditemukan untuk dokumen ini.");
-        }
-        setQuestions(data.quiz);
-        setDocumentTitle(data.documentTitle || "Materi Pembelajaran");
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Gagal memuat soal kuis.");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchQuiz();
-  }, [docId, isDemo, router]);
+    setIsLoading(true);
+    setError(null);
+    loadQuiz();
+  }, [docId, isDemo, router, loadQuiz]);
 
   const currentQuestion = questions[currentIndex];
   const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
@@ -108,6 +134,63 @@ export default function QuizPage() {
 
   const handlePrev = () => {
     if (currentIndex > 0) setCurrentIndex((prev) => prev - 1);
+  };
+
+  // ── Ganti quiz set ─────────────────────────────────────────────────────────
+  const handleSetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const setId = e.target.value;
+    if (!setId || setId === selectedSetId) return;
+    setIsLoading(true);
+    setError(null);
+    setSubmitError(null);
+    setCurrentIndex(0);
+    setSelectedAnswers({});
+    loadQuiz(setId);
+  };
+
+  // ── Buat soal baru (regenerate quiz set) ──────────────────────────────────
+  const handleRegenerate = async () => {
+    setIsRegenerating(true);
+    setRegenerateError(null);
+    setRegenerateMessage(null);
+    try {
+      const res = await fetch(`/api/documents/${docId}/quiz/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        if (body.requireAuth) {
+          router.push(
+            "/login?message=" +
+              encodeURIComponent("Login dulu untuk membuat soal baru")
+          );
+          return;
+        }
+        throw new Error(body.error || "Gagal membuat soal baru.");
+      }
+
+      const data = await res.json();
+
+      // Muat set baru dan langsung pilih
+      setIsLoading(true);
+      setError(null);
+      setSubmitError(null);
+      setCurrentIndex(0);
+      setSelectedAnswers({});
+      await loadQuiz(data.quizSet?.id);
+      setRegenerateMessage(
+        data.message || "Soal baru berhasil dibuat."
+      );
+    } catch (err: unknown) {
+      setRegenerateError(
+        err instanceof Error ? err.message : "Gagal membuat soal baru."
+      );
+    } finally {
+      setIsRegenerating(false);
+    }
   };
 
   // ── Submit quiz ────────────────────────────────────────────────────────────
@@ -140,6 +223,7 @@ export default function QuizPage() {
         percentage: Math.round((correctCount / mockQuestions.length) * 100),
         documentTitle: MOCK_DOCUMENT.title,
         review: reviewData,
+        createdAt: new Date().toISOString(),
       };
 
       sessionStorage.setItem(`quiz_result_${docId}`, JSON.stringify(resultPayload));
@@ -160,7 +244,7 @@ export default function QuizPage() {
       const res = await fetch(`/api/quiz/${docId}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ answers, sessionId }),
+        body: JSON.stringify({ answers, sessionId, quizSetId: selectedSetId }),
       });
 
       if (!res.ok) {
@@ -177,6 +261,7 @@ export default function QuizPage() {
         percentage: data.percentage,
         documentTitle: data.documentTitle || documentTitle,
         review: data.review,
+        createdAt: data.createdAt,
       };
       sessionStorage.setItem(`quiz_result_${docId}`, JSON.stringify(resultPayload));
 
@@ -213,6 +298,7 @@ export default function QuizPage() {
               </h1>
               <p className="text-[11px] text-neutral-500 font-mono">
                 Quiz Pilihan Ganda
+                {!isLoading && selectedSetLabel && ` • ${selectedSetLabel}`}
                 {!isLoading && questions.length > 0 && ` • ${questions.length} Soal`}
               </p>
             </div>
@@ -263,6 +349,56 @@ export default function QuizPage() {
             >
               Kembali ke Beranda
             </Link>
+          </div>
+        )}
+
+        {/* Quiz Set Selector & Regenerate */}
+        {!isLoading && !error && sets.length > 0 && (
+          <div className="mb-6 space-y-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-xs text-neutral-600">
+                <span className="font-medium">Set Soal:</span>
+                <select
+                  value={selectedSetId ?? ""}
+                  onChange={handleSetChange}
+                  disabled={isLoading || isSubmitting || isRegenerating}
+                  className="px-3 py-2 rounded-xl border border-neutral-200 bg-white text-xs font-medium text-neutral-800 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 disabled:opacity-50 cursor-pointer"
+                >
+                  {sets.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label} ({s.questionCount} soal)
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <button
+                onClick={handleRegenerate}
+                disabled={isRegenerating || isSubmitting}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-neutral-200 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+              >
+                {isRegenerating ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                <span>{isRegenerating ? "Membuat Soal..." : "Buat Soal Baru"}</span>
+              </button>
+            </div>
+
+            {regenerateError && (
+              <div className="flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3 rounded-lg">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{regenerateError}</span>
+              </div>
+            )}
+
+            {regenerateMessage && (
+              <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>{regenerateMessage}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -337,7 +473,7 @@ export default function QuizPage() {
 
               {currentIndex === questions.length - 1 ? (
                 <button
-                  onClick={handleSubmitQuiz}
+                  onClick={() => setShowConfirmDialog(true)}
                   disabled={isSubmitting}
                   className="py-3 px-6 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-medium transition flex items-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
@@ -371,6 +507,19 @@ export default function QuizPage() {
       <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
         Quick MVP — Quiz Mode
       </footer>
+
+      {/* Submit Confirmation Dialog */}
+      {showConfirmDialog && (
+        <SubmitConfirmDialog
+          answeredCount={answeredCount}
+          total={questions.length}
+          onCancel={() => setShowConfirmDialog(false)}
+          onConfirm={() => {
+            setShowConfirmDialog(false);
+            handleSubmitQuiz();
+          }}
+        />
+      )}
     </div>
   );
 }

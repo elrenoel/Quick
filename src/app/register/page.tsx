@@ -1,20 +1,104 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signUp, signIn } from "@/lib/auth-client";
-import { ArrowRight, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
+import {
+  ArrowRight,
+  AlertCircle,
+  Loader2,
+  ArrowLeft,
+  Check,
+  Info,
+} from "lucide-react";
 
-export default function RegisterPage() {
+// ----- Shared validation helpers (mirrors src/lib/auth.ts PASSWORD_RULES) -----
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_RULES = {
+  minLength: 8,
+  hasLetter: /[a-zA-Z]/,
+  hasNumber: /[0-9]/,
+};
+
+function validateEmail(email: string): string | null {
+  if (!email.trim()) return "Alamat email wajib diisi.";
+  if (!EMAIL_REGEX.test(email.trim()))
+    return "Format email tidak valid. Contoh: nama@domain.com";
+  return null;
+}
+
+function validatePassword(password: string): string | null {
+  if (!password) return "Kata sandi wajib diisi.";
+  if (password.length < PASSWORD_RULES.minLength)
+    return `Kata sandi minimal ${PASSWORD_RULES.minLength} karakter.`;
+  if (!PASSWORD_RULES.hasLetter.test(password))
+    return "Kata sandi harus mengandung minimal satu huruf.";
+  if (!PASSWORD_RULES.hasNumber.test(password))
+    return "Kata sandi harus mengandung minimal satu angka.";
+  return null;
+}
+
+// ----- Sub-component: individual password rule row -----
+function PasswordRule({ met, label }: { met: boolean; label: string }) {
+  return (
+    <span
+      className="flex items-center gap-1.5 transition-colors duration-200"
+      style={{ color: met ? "#16a34a" : "#9ca3af" }}
+    >
+      <span
+        className="flex items-center justify-center rounded-full transition-all duration-300"
+        style={{
+          width: 14,
+          height: 14,
+          background: met ? "#dcfce7" : "#f3f4f6",
+          border: met ? "1.5px solid #86efac" : "1.5px solid #e5e7eb",
+        }}
+      >
+        {met && <Check style={{ width: 8, height: 8, strokeWidth: 3 }} />}
+      </span>
+      <span className="text-[11px] leading-none">{label}</span>
+    </span>
+  );
+}
+
+// ----- Main component -----
+function RegisterForm() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const searchParams = useSearchParams();
+
+  // When the user arrives from "Login dengan Google" with an unregistered
+  // email, the server redirects here with the Google profile prefilled.
+  const googleNotice = searchParams.get("google_error");
+  const googleEmail = searchParams.get("email") ?? "";
+  const googleName = searchParams.get("name") ?? "";
+
+  const [name, setName] = useState(googleName);
+  const [email, setEmail] = useState(googleEmail);
+  const [emailTouched, setEmailTouched] = useState(false);
   const [password, setPassword] = useState("");
+  const [passwordTouched, setPasswordTouched] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Live password rule evaluation
+  const passwordChecks = useMemo(
+    () => ({
+      length: password.length >= PASSWORD_RULES.minLength,
+      hasLetter: PASSWORD_RULES.hasLetter.test(password),
+      hasNumber: PASSWORD_RULES.hasNumber.test(password),
+    }),
+    [password]
+  );
+
+  const isPasswordValid =
+    passwordChecks.length && passwordChecks.hasLetter && passwordChecks.hasNumber;
+  const showPasswordHints = passwordTouched && password.length > 0;
+
+  // Inline field errors (only shown after the field has been touched)
+  const emailError = emailTouched ? validateEmail(email) : null;
 
   const handleGoogleSignUp = async () => {
     setIsGoogleLoading(true);
@@ -23,12 +107,17 @@ export default function RegisterPage() {
       await signIn.social({
         provider: "google",
         callbackURL: "/",
+        // Explicitly allow creating a new account with Google from this page.
+        requestSignUp: true,
+        // A brand-new account lands here after creation; the server rewrites
+        // it to the callbackURL (the user is already signed in).
+        newUserCallbackURL: "/register?google_created=1",
+        // Existing email → the server redirects to /login with the notice.
+        errorCallbackURL: "/login",
       });
     } catch (err: unknown) {
       setErrorMessage(
-        err instanceof Error
-          ? err.message
-          : "Gagal menghubungkan ke akun Google."
+        err instanceof Error ? err.message : "Gagal menghubungkan ke akun Google."
       );
       setIsGoogleLoading(false);
     }
@@ -38,13 +127,22 @@ export default function RegisterPage() {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!name.trim() || !email.trim() || !password) {
-      setErrorMessage("Semua kolom wajib diisi.");
+    if (!name.trim()) {
+      setErrorMessage("Nama lengkap wajib diisi.");
       return;
     }
 
-    if (password.length < 8) {
-      setErrorMessage("Kata sandi harus terdiri dari minimal 8 karakter.");
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      setEmailTouched(true);
+      setErrorMessage(emailErr);
+      return;
+    }
+
+    const pwErr = validatePassword(password);
+    if (pwErr) {
+      setPasswordTouched(true);
+      setErrorMessage(pwErr);
       return;
     }
 
@@ -70,7 +168,7 @@ export default function RegisterPage() {
         return;
       }
 
-      // Pendaftaran berhasil, periksa apakah ada data trial yang perlu dimigrasi
+      // Migrate trial data if present
       if (typeof window !== "undefined") {
         const rawTrial = localStorage.getItem("quick_trial_data");
         if (rawTrial) {
@@ -96,7 +194,6 @@ export default function RegisterPage() {
         }
       }
 
-      // Default: jika tidak ada data trial, redirect ke homepage
       router.push("/");
       router.refresh();
     } catch (err: unknown) {
@@ -139,9 +236,19 @@ export default function RegisterPage() {
               Daftar Akun Quick
             </h1>
             <p className="text-xs text-neutral-500">
-              Buat akun gratis untuk mulai belajar dengan flashcard & kuis AI.
+              Buat akun gratis untuk mulai belajar dengan flashcard &amp; kuis AI.
             </p>
           </div>
+
+          {googleNotice === "not_registered" && (
+            <div className="mb-6 flex items-start gap-2.5 text-xs text-amber-900 bg-amber-50 border border-amber-200 p-3.5 rounded-xl">
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-700" />
+              <span>
+                Akun dengan email ini belum terdaftar, silakan daftar dulu.
+                Data dari Google sudah diisikan otomatis.
+              </span>
+            </div>
+          )}
 
           {errorMessage && (
             <div className="mb-6 flex items-start gap-2.5 text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3.5 rounded-xl">
@@ -194,6 +301,7 @@ export default function RegisterPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Nama Lengkap */}
             <div>
               <label
                 htmlFor="name"
@@ -213,6 +321,7 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/* Email */}
             <div>
               <label
                 htmlFor="email"
@@ -225,33 +334,83 @@ export default function RegisterPage() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (emailTouched) setErrorMessage(null);
+                }}
+                onBlur={() => setEmailTouched(true)}
                 placeholder="nama@kampus.ac.id"
                 disabled={isLoading}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition disabled:opacity-50"
+                className={`w-full px-3.5 py-2.5 rounded-xl border bg-neutral-50/50 text-sm focus:outline-none focus:ring-2 transition disabled:opacity-50 ${
+                  emailError
+                    ? "border-rose-300 focus:ring-rose-500/10 focus:border-rose-400"
+                    : "border-neutral-200 focus:ring-neutral-900/10 focus:border-neutral-900"
+                }`}
               />
+              {emailError && (
+                <p className="mt-1.5 text-[11px] text-rose-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  {emailError}
+                </p>
+              )}
             </div>
 
+            {/* Password */}
             <div>
               <label
                 htmlFor="password"
                 className="block text-xs font-medium text-neutral-700 mb-1.5"
               >
-                Kata Sandi (Min. 8 Karakter)
+                Kata Sandi
               </label>
               <input
                 id="password"
                 type="password"
                 required
-                minLength={8}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (!passwordTouched) setPasswordTouched(true);
+                }}
                 placeholder="••••••••"
                 disabled={isLoading}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition disabled:opacity-50"
               />
+
+              {/* Password strength hints - slide in when typing starts */}
+              <div
+                className="overflow-hidden transition-all duration-300"
+                style={{
+                  maxHeight: showPasswordHints ? 64 : 0,
+                  opacity: showPasswordHints ? 1 : 0,
+                  marginTop: showPasswordHints ? 8 : 0,
+                }}
+              >
+                <div className="flex flex-wrap gap-x-4 gap-y-2 px-0.5">
+                  <PasswordRule
+                    met={passwordChecks.length}
+                    label="Minimal 8 karakter"
+                  />
+                  <PasswordRule
+                    met={passwordChecks.hasLetter}
+                    label="Mengandung huruf"
+                  />
+                  <PasswordRule
+                    met={passwordChecks.hasNumber}
+                    label="Mengandung angka"
+                  />
+                </div>
+              </div>
+
+              {/* Static hint when user hasn't started typing */}
+              {!showPasswordHints && !password && (
+                <p className="mt-1.5 text-[11px] text-neutral-400">
+                  Min. 8 karakter, kombinasi huruf &amp; angka.
+                </p>
+              )}
             </div>
 
+            {/* Konfirmasi Password */}
             <div>
               <label
                 htmlFor="confirmPassword"
@@ -263,19 +422,32 @@ export default function RegisterPage() {
                 id="confirmPassword"
                 type="password"
                 required
-                minLength={8}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
                 disabled={isLoading}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition disabled:opacity-50"
+                className={`w-full px-3.5 py-2.5 rounded-xl border bg-neutral-50/50 text-sm focus:outline-none focus:ring-2 transition disabled:opacity-50 ${
+                  confirmPassword && confirmPassword !== password
+                    ? "border-rose-300 focus:ring-rose-500/10 focus:border-rose-400"
+                    : "border-neutral-200 focus:ring-neutral-900/10 focus:border-neutral-900"
+                }`}
               />
+              {confirmPassword && confirmPassword !== password && (
+                <p className="mt-1.5 text-[11px] text-rose-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  Konfirmasi kata sandi tidak cocok.
+                </p>
+              )}
             </div>
 
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={
+                  isLoading ||
+                  !isPasswordValid ||
+                  (!!confirmPassword && confirmPassword !== password)
+                }
                 className="w-full py-3 px-5 rounded-xl bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-50 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
               >
                 {isLoading ? (
@@ -310,5 +482,19 @@ export default function RegisterPage() {
         Quick — AI Flashcard &amp; Quiz App
       </footer>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#fafafa] flex items-center justify-center text-neutral-500">
+          <Loader2 className="w-6 h-6 animate-spin" />
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }

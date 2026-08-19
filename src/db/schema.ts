@@ -84,16 +84,36 @@ export const flashcards = pgTable("flashcards", {
   definition: text("definition").notNull(),
 });
 
+// Quiz Sets Table — kumpulan soal quiz per dokumen (misal "Set 1", "Set 2")
+export const quizSets = pgTable("quiz_sets", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  documentId: uuid("document_id")
+    .notNull()
+    .references(() => documents.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+});
+
 // Quiz Questions Table
 export const quizQuestions = pgTable("quiz_questions", {
   id: uuid("id").defaultRandom().primaryKey(),
   documentId: uuid("document_id")
     .notNull()
     .references(() => documents.id, { onDelete: "cascade" }),
+  quizSetId: uuid("quiz_set_id")
+    .notNull()
+    .references(() => quizSets.id, { onDelete: "cascade" }),
   question: text("question").notNull(),
   options: jsonb("options").$type<string[]>().notNull(),
   correctIndex: integer("correct_index").notNull(),
 });
+
+// Detail jawaban user per soal (disimpan agar bisa review attempt lama)
+export type QuizAnswer = {
+  questionId: string;
+  selectedIndex: number;
+  correctIndex: number;
+};
 
 // Quiz Attempts Table
 export const quizAttempts = pgTable("quiz_attempts", {
@@ -104,6 +124,10 @@ export const quizAttempts = pgTable("quiz_attempts", {
   sessionId: text("session_id"),
   score: integer("score").notNull(),
   total: integer("total").notNull(),
+  answers: jsonb("answers").$type<QuizAnswer[]>().default([]).notNull(),
+  quizSetId: uuid("quiz_set_id")
+    .notNull()
+    .references(() => quizSets.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
 });
 
@@ -135,8 +159,18 @@ export const documentsRelations = relations(documents, ({ one, many }) => ({
     references: [user.id],
   }),
   flashcards: many(flashcards),
+  quizSets: many(quizSets),
   quizQuestions: many(quizQuestions),
   quizAttempts: many(quizAttempts),
+}));
+
+export const quizSetsRelations = relations(quizSets, ({ one, many }) => ({
+  document: one(documents, {
+    fields: [quizSets.documentId],
+    references: [documents.id],
+  }),
+  questions: many(quizQuestions),
+  attempts: many(quizAttempts),
 }));
 
 export const flashcardsRelations = relations(flashcards, ({ one }) => ({
@@ -151,12 +185,20 @@ export const quizQuestionsRelations = relations(quizQuestions, ({ one }) => ({
     fields: [quizQuestions.documentId],
     references: [documents.id],
   }),
+  quizSet: one(quizSets, {
+    fields: [quizQuestions.quizSetId],
+    references: [quizSets.id],
+  }),
 }));
 
 export const quizAttemptsRelations = relations(quizAttempts, ({ one }) => ({
   document: one(documents, {
     fields: [quizAttempts.documentId],
     references: [documents.id],
+  }),
+  quizSet: one(quizSets, {
+    fields: [quizAttempts.quizSetId],
+    references: [quizSets.id],
   }),
 }));
 
@@ -175,6 +217,8 @@ export type Document = typeof documents.$inferSelect;
 export type NewDocument = typeof documents.$inferInsert;
 export type Flashcard = typeof flashcards.$inferSelect;
 export type NewFlashcard = typeof flashcards.$inferInsert;
+export type QuizSet = typeof quizSets.$inferSelect;
+export type NewQuizSet = typeof quizSets.$inferInsert;
 export type QuizQuestion = typeof quizQuestions.$inferSelect;
 export type NewQuizQuestion = typeof quizQuestions.$inferInsert;
 export type QuizAttempt = typeof quizAttempts.$inferSelect;

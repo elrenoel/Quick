@@ -11,6 +11,7 @@ import {
   LogIn,
   UserPlus,
 } from "lucide-react";
+import SubmitConfirmDialog from "@/components/SubmitConfirmDialog";
 
 interface QuizQuestion {
   question: string;
@@ -31,6 +32,7 @@ export default function TrialQuizPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [notFound, setNotFound] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const optionLabels = ["A", "B", "C", "D"];
 
@@ -106,6 +108,7 @@ export default function TrialQuizPage() {
       percentage: Math.round((score / questions.length) * 100),
       documentTitle: trialData.title,
       review,
+      createdAt: new Date().toISOString(),
     };
 
     sessionStorage.setItem("trial_quiz_result", JSON.stringify(resultPayload));
@@ -237,7 +240,7 @@ export default function TrialQuizPage() {
 
           {currentIndex === questions.length - 1 ? (
             <button
-              onClick={handleFinishQuiz}
+              onClick={() => setShowConfirmDialog(true)}
               className="py-3 px-6 rounded-xl bg-neutral-900 text-white text-xs sm:text-sm font-medium hover:bg-neutral-800 active:scale-[0.99] transition flex items-center gap-2 cursor-pointer shadow-xs"
             >
               <CheckCircle2 className="w-4 h-4" />
@@ -258,6 +261,19 @@ export default function TrialQuizPage() {
       <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
         Quick — Kuis Interaktif Mode Trial
       </footer>
+
+      {/* Submit Confirmation Dialog */}
+      {showConfirmDialog && (
+        <SubmitConfirmDialog
+          answeredCount={answeredCount}
+          total={questions.length}
+          onCancel={() => setShowConfirmDialog(false)}
+          onConfirm={() => {
+            setShowConfirmDialog(false);
+            handleFinishQuiz();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
+import { formatDateTime } from "@/lib/format-date";
 import {
   FileText,
   Clock,
@@ -11,6 +12,10 @@ import {
   Plus,
   Loader2,
   AlertCircle,
+  Pencil,
+  Check,
+  X,
+  ClipboardCheck,
   User as UserIcon,
   LogOut,
   FolderOpen,
@@ -20,22 +25,7 @@ interface UserDocument {
   id: string;
   title: string;
   createdAt: string;
-}
-
-function formatDate(dateStr: string): string {
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return new Intl.DateTimeFormat("id-ID", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(d);
-  } catch {
-    return dateStr;
-  }
+  lastAttempt?: { score: number; total: number; createdAt: string } | null;
 }
 
 export default function HistoryPage() {
@@ -46,6 +36,12 @@ export default function HistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // ── Rename state ───────────────────────────────────────────────────────────
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isSessionPending) return;
@@ -88,6 +84,65 @@ export default function HistoryPage() {
       // Ignored
     } finally {
       setIsLoggingOut(false);
+    }
+  };
+
+  // ── Rename dokumen ─────────────────────────────────────────────────────────
+  const startRename = (doc: UserDocument) => {
+    setEditingId(doc.id);
+    setEditingTitle(doc.title);
+    setRenameError(null);
+  };
+
+  const cancelRename = () => {
+    setEditingId(null);
+    setEditingTitle("");
+    setRenameError(null);
+  };
+
+  const handleRenameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId) return;
+
+    const newTitle = editingTitle.trim();
+    if (!newTitle) {
+      setRenameError("Nama dokumen tidak boleh kosong.");
+      return;
+    }
+
+    const current = documentsList.find((d) => d.id === editingId);
+    if (current && current.title === newTitle) {
+      cancelRename();
+      return;
+    }
+
+    setIsRenaming(true);
+    setRenameError(null);
+    try {
+      const res = await fetch(`/api/documents/${editingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Gagal menyimpan nama dokumen.");
+      }
+      const data = await res.json();
+      setDocumentsList((prev) =>
+        prev.map((d) =>
+          d.id === editingId
+            ? { ...d, title: data?.document?.title ?? newTitle }
+            : d
+        )
+      );
+      cancelRename();
+    } catch (err) {
+      setRenameError(
+        err instanceof Error ? err.message : "Gagal menyimpan nama dokumen."
+      );
+    } finally {
+      setIsRenaming(false);
     }
   };
 
@@ -243,17 +298,105 @@ export default function HistoryPage() {
                     href={`/documents/${doc.id}/flashcards`}
                     className="group bg-white border border-neutral-200 hover:border-neutral-400 rounded-xl p-5 shadow-2xs transition flex items-center justify-between gap-4 block cursor-pointer"
                   >
-                    <div className="flex items-start gap-3.5 min-w-0">
+                    <div className="flex items-start gap-3.5 min-w-0 flex-1">
                       <div className="w-10 h-10 rounded-lg bg-neutral-100 group-hover:bg-neutral-900 group-hover:text-white flex items-center justify-center text-neutral-700 shrink-0 transition">
                         <FileText className="w-5 h-5" />
                       </div>
-                      <div className="min-w-0">
-                        <h2 className="text-sm font-semibold text-neutral-900 tracking-tight truncate group-hover:text-neutral-900">
-                          {doc.title}
-                        </h2>
+                      <div className="min-w-0 flex-1">
+                        {editingId === doc.id ? (
+                          <form
+                            onSubmit={handleRenameSubmit}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-2"
+                          >
+                            <input
+                              value={editingTitle}
+                              onChange={(e) => setEditingTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape") cancelRename();
+                              }}
+                              autoFocus
+                              maxLength={200}
+                              placeholder="Nama dokumen"
+                              disabled={isRenaming}
+                              className="w-full min-w-0 px-2.5 py-1.5 rounded-lg border border-neutral-300 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 disabled:opacity-50"
+                            />
+                            <button
+                              type="submit"
+                              disabled={isRenaming || !editingTitle.trim()}
+                              title="Simpan"
+                              className="shrink-0 w-7 h-7 rounded-lg bg-emerald-700 text-white flex items-center justify-center hover:bg-emerald-800 disabled:opacity-50 transition cursor-pointer"
+                            >
+                              {isRenaming ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                cancelRename();
+                              }}
+                              disabled={isRenaming}
+                              title="Batal"
+                              className="shrink-0 w-7 h-7 rounded-lg bg-neutral-100 text-neutral-600 flex items-center justify-center hover:bg-neutral-200 disabled:opacity-50 transition cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </form>
+                        ) : (
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <h2 className="text-sm font-semibold text-neutral-900 tracking-tight truncate group-hover:text-neutral-900">
+                              {doc.title}
+                            </h2>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                startRename(doc);
+                              }}
+                              title="Ubah nama dokumen"
+                              className="shrink-0 w-6 h-6 rounded-md text-neutral-300 hover:text-neutral-900 hover:bg-neutral-100 flex items-center justify-center transition cursor-pointer"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+
+                        {renameError && editingId === doc.id && (
+                          <p className="mt-1 flex items-center gap-1 text-[11px] text-rose-500">
+                            <AlertCircle className="w-3 h-3 shrink-0" />
+                            <span>{renameError}</span>
+                          </p>
+                        )}
+
                         <div className="flex items-center gap-1.5 text-xs text-neutral-400 mt-1 font-mono">
                           <Clock className="w-3 h-3" />
-                          <span>{formatDate(doc.createdAt)}</span>
+                          <span>{formatDateTime(doc.createdAt)}</span>
+                        </div>
+
+                        <div className="mt-1 flex items-center gap-2 text-xs">
+                          {doc.lastAttempt ? (
+                            <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
+                              <ClipboardCheck className="w-3 h-3" />
+                              Skor terakhir: {doc.lastAttempt.score}/{doc.lastAttempt.total}
+                            </span>
+                          ) : (
+                            <span className="text-neutral-400">Belum ada ujian</span>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              router.push(`/documents/${doc.id}/attempts`);
+                            }}
+                            className="inline-flex items-center gap-0.5 text-neutral-500 underline underline-offset-2 hover:text-neutral-900 transition cursor-pointer"
+                          >
+                            Riwayat ujian
+                          </button>
                         </div>
                       </div>
                     </div>

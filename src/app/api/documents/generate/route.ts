@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { db, user, documents, flashcards, quizQuestions } from "@/db";
-import { eq } from "drizzle-orm";
+import { db, documents, flashcards, quizQuestions, quizSets } from "@/db";
 import { extractPdfText } from "@/lib/pdf";
 import { generateStudyMaterials } from "@/lib/ai";
+import { DAILY_LIMIT, getUserQuota, incrementGenerationUsage } from "@/lib/daily-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB
-const DAILY_LIMIT = 5;
 
 function isValidPdfHeader(buffer: ArrayBuffer): boolean {
   if (buffer.byteLength < 5) return false;
@@ -43,37 +42,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Ambil data user dari DB untuk mengecek kuota harian
-    const [userRow] = await db
-      .select({
-        id: user.id,
-        generationCountToday: user.generationCountToday,
-        lastGenerationDate: user.lastGenerationDate,
-      })
-      .from(user)
-      .where(eq(user.id, session.user.id))
-      .limit(1);
+    // 2. Ambil status kuota harian user (reset otomatis jika hari baru)
+    const quota = await getUserQuota(session.user.id);
 
-    if (!userRow) {
+    if (!quota) {
       return NextResponse.json(
         { success: false, error: "Data user tidak ditemukan." },
         { status: 404 }
       );
     }
 
-    // 3. Cek dan reset daily limit
-    const today = new Date().toISOString().split("T")[0]; // format "2026-08-18"
-    const isNewDay = userRow.lastGenerationDate !== today;
-    const currentCount = isNewDay ? 0 : userRow.generationCountToday;
-
-    if (currentCount >= DAILY_LIMIT) {
+    // 3. Cek daily limit
+    if (quota.currentCount >= DAILY_LIMIT) {
       return NextResponse.json(
         {
           success: false,
           error: `Limit harian ${DAILY_LIMIT}x generate sudah tercapai. Coba lagi besok!`,
           limitReached: true,
           remainingToday: 0,
-          resetDate: today,
+          resetDate: quota.today,
         },
         { status: 429 }
       );
@@ -183,9 +170,16 @@ export async function POST(request: NextRequest) {
       }))
     );
 
+    // Set default "Set 1" untuk quiz
+    const [quizSet] = await db
+      .insert(quizSets)
+      .values({ documentId: insertedDoc.id, label: "Set 1" })
+      .returning({ id: quizSets.id });
+
     await db.insert(quizQuestions).values(
       aiResult.quiz.map((q) => ({
         documentId: insertedDoc.id,
+        quizSetId: quizSet.id,
         question: q.question,
         options: q.options,
         correctIndex: q.correct_index,
@@ -193,15 +187,11 @@ export async function POST(request: NextRequest) {
     );
 
     // 8. Update daily limit counter
-    const newCount = currentCount + 1;
-    await db
-      .update(user)
-      .set({
-        generationCountToday: newCount,
-        lastGenerationDate: today,
-        updatedAt: new Date(),
-      })
-      .where(eq(user.id, session.user.id));
+    const newCount = await incrementGenerationUsage(
+      session.user.id,
+      quota.today,
+      quota.currentCount
+    );
 
     return NextResponse.json(
       {
@@ -242,27 +232,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ remainingToday: null, requireAuth: true }, { status: 401 });
     }
 
-    const [userRow] = await db
-      .select({
-        generationCountToday: user.generationCountToday,
-        lastGenerationDate: user.lastGenerationDate,
-      })
-      .from(user)
-      .where(eq(user.id, session.user.id))
-      .limit(1);
-
-    if (!userRow) {
+    const quota = await getUserQuota(session.user.id);
+    if (!quota) {
       return NextResponse.json({ remainingToday: DAILY_LIMIT });
     }
 
-    const today = new Date().toISOString().split("T")[0];
-    const isNewDay = userRow.lastGenerationDate !== today;
-    const currentCount = isNewDay ? 0 : userRow.generationCountToday;
-    const remainingToday = Math.max(0, DAILY_LIMIT - currentCount);
-
     return NextResponse.json({
-      remainingToday,
-      usedToday: currentCount,
+      remainingToday: quota.remainingToday,
+      usedToday: quota.currentCount,
       dailyLimit: DAILY_LIMIT,
     });
   } catch (error) {

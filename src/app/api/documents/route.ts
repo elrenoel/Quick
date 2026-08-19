@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { db, documents } from "@/db";
-import { eq, desc } from "drizzle-orm";
+import { db, documents, quizAttempts } from "@/db";
+import { eq, desc, inArray } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +32,44 @@ export async function GET(request: NextRequest) {
       .where(eq(documents.userId, session.user.id))
       .orderBy(desc(documents.createdAt));
 
+    // Ambil skor attempt terakhir per dokumen (dari quiz_attempts, urut terbaru)
+    const docIds = userDocs.map((d) => d.id);
+    const lastAttemptByDoc: Record<
+      string,
+      { score: number; total: number; createdAt: string }
+    > = {};
+
+    if (docIds.length > 0) {
+      const attempts = await db
+        .select({
+          documentId: quizAttempts.documentId,
+          score: quizAttempts.score,
+          total: quizAttempts.total,
+          createdAt: quizAttempts.createdAt,
+        })
+        .from(quizAttempts)
+        .where(inArray(quizAttempts.documentId, docIds))
+        .orderBy(desc(quizAttempts.createdAt));
+
+      for (const attempt of attempts) {
+        if (!lastAttemptByDoc[attempt.documentId]) {
+          lastAttemptByDoc[attempt.documentId] = {
+            score: attempt.score,
+            total: attempt.total,
+            createdAt: attempt.createdAt,
+          };
+        }
+      }
+    }
+
+    const documentsWithLastAttempt = userDocs.map((d) => ({
+      ...d,
+      lastAttempt: lastAttemptByDoc[d.id] ?? null,
+    }));
+
     return NextResponse.json({
       success: true,
-      documents: userDocs,
+      documents: documentsWithLastAttempt,
     });
   } catch (error) {
     console.error("Error in GET /api/documents:", error);

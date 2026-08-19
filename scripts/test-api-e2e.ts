@@ -8,7 +8,7 @@ dotenv.config({ path: ".env.local" });
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { db, user, documents, flashcards, quizQuestions, quizAttempts } from "../src/db";
+import { db, user, documents, flashcards, quizQuestions, quizAttempts, quizSets } from "../src/db";
 import { eq } from "drizzle-orm";
 import { extractPdfText } from "../src/lib/pdf";
 import { generateStudyMaterials } from "../src/lib/ai";
@@ -93,9 +93,16 @@ async function runE2ETest() {
       }))
     );
 
+    // Buat quiz set default "Set 1" lalu simpan soal ke dalamnya
+    const [quizSet] = await db
+      .insert(quizSets)
+      .values({ documentId: testDocId, label: "Set 1" })
+      .returning({ id: quizSets.id });
+
     await db.insert(quizQuestions).values(
       generatedQuiz.map((q) => ({
         documentId: testDocId,
+        quizSetId: quizSet.id,
         question: q.question,
         options: q.options,
         correctIndex: q.correct_index,
@@ -178,6 +185,12 @@ async function runE2ETest() {
       }
     });
 
+    const [firstSet] = await db
+      .select({ id: quizSets.id })
+      .from(quizSets)
+      .where(eq(quizSets.documentId, testDocId))
+      .limit(1);
+
     const [savedAttempt] = await db
       .insert(quizAttempts)
       .values({
@@ -185,6 +198,7 @@ async function runE2ETest() {
         sessionId: testSessionId,
         score,
         total,
+        quizSetId: firstSet.id,
       })
       .returning();
 

@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, type SchemaUnion } from "@google/genai";
 
 export interface GeneratedFlashcard {
   term: string;
@@ -13,6 +13,14 @@ export interface GeneratedQuizQuestion {
 
 export interface StudyMaterialsResult {
   flashcards: GeneratedFlashcard[];
+  quiz: GeneratedQuizQuestion[];
+  rawWordCount: number;
+  isTruncated: boolean;
+  usedModel?: string;
+  latencyMs?: number;
+}
+
+export interface QuizOnlyResult {
   quiz: GeneratedQuizQuestion[];
   rawWordCount: number;
   isTruncated: boolean;
@@ -37,6 +45,19 @@ TUGAS QUIZ PILIHAN GANDA:
 FORMAT OUTPUT:
 Balas HANYA dengan JSON valid sesuai struktur schema tanpa pengantar teks apapun.`;
 
+const QUIZ_ONLY_SYSTEM_INSTRUCTION = `Kamu adalah asisten belajar cerdas dan spesialis active recall tingkat universitas.
+
+TUGAS QUIZ PILIHAN GANDA (HANYA QUIZ):
+1. Buat 5-8 soal pilihan ganda konseptual yang BARU dan BERBEDA dari materi yang sama (menguji pemahaman 'mengapa', 'bagaimana', sebab-akibat, atau studi kasus mini).
+2. Setiap soal WAJIB memiliki tepat 4 opsi jawaban (options array panjang 4).
+3. Buat opsi pengecoh (distractor) yang masuk akal dan relevan dengan materi, jangan membuat opsi yang konyol atau terlalu mudah ditebak.
+4. Panjang kalimat antarpilihan jawaban harus seimbang agar jawaban benar tidak mencolok.
+5. 'correct_index' WAJIB berupa integer (0, 1, 2, atau 3) yang menunjukkan indeks posisi jawaban yang benar pada array options (0 = opsi ke-1, 1 = opsi ke-2, 2 = opsi ke-3, 3 = opsi ke-4).
+6. JANGAN mengeluarkan flashcard — hanya array quiz.
+
+FORMAT OUTPUT:
+Balas HANYA dengan JSON valid sesuai struktur schema tanpa pengantar teks apapun.`;
+
 const MAX_WORDS_LIMIT = 8000;
 
 // Daftar model tier berurutan: dimulai dari model ultra-cepat (flash-lite ~4s)
@@ -46,6 +67,75 @@ const DEFAULT_MODEL_TIERS = [
   "gemini-3.6-flash",
   "gemini-3.5-flash",
 ];
+
+const FULL_RESPONSE_SCHEMA: SchemaUnion = {
+  type: "object",
+  properties: {
+    flashcards: {
+      type: "array",
+      description: "Daftar istilah penting dan definisi ringkas",
+      items: {
+        type: "object",
+        properties: {
+          term: { type: "string", description: "Istilah teknis atau konsep inti spesifik" },
+          definition: {
+            type: "string",
+            description: "Definisi singkat dan padat (maks 2 kalimat)",
+          },
+        },
+        required: ["term", "definition"],
+      },
+    },
+    quiz: {
+      type: "array",
+      description: "Daftar soal pilihan ganda konseptual berbobot",
+      items: {
+        type: "object",
+        properties: {
+          question: { type: "string", description: "Pertanyaan yang menguji pemahaman" },
+          options: {
+            type: "array",
+            description: "Tepat 4 opsi pilihan jawaban yang seimbang",
+            items: { type: "string" },
+          },
+          correct_index: {
+            type: "integer",
+            description: "Index jawaban yang benar (0, 1, 2, atau 3)",
+          },
+        },
+        required: ["question", "options", "correct_index"],
+      },
+    },
+  },
+  required: ["flashcards", "quiz"],
+};
+
+const QUIZ_RESPONSE_SCHEMA: SchemaUnion = {
+  type: "object",
+  properties: {
+    quiz: {
+      type: "array",
+      description: "Daftar soal pilihan ganda konseptual berbobot",
+      items: {
+        type: "object",
+        properties: {
+          question: { type: "string", description: "Pertanyaan yang menguji pemahaman" },
+          options: {
+            type: "array",
+            description: "Tepat 4 opsi pilihan jawaban yang seimbang",
+            items: { type: "string" },
+          },
+          correct_index: {
+            type: "integer",
+            description: "Index jawaban yang benar (0, 1, 2, atau 3)",
+          },
+        },
+        required: ["question", "options", "correct_index"],
+      },
+    },
+  },
+  required: ["quiz"],
+};
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -110,13 +200,26 @@ function sanitizeAiOutput(data: {
   return { flashcards: cleanCards, quiz: cleanQuiz };
 }
 
+interface AiCallParams {
+  systemInstruction: string;
+  responseSchema: SchemaUnion;
+  promptSuffix: string;
+  rawText: string;
+}
+
+interface AiCallResult {
+  parsed: unknown;
+  rawWordCount: number;
+  isTruncated: boolean;
+  usedModel?: string;
+  latencyMs?: number;
+}
+
 /**
- * Generate flashcards & quiz questions dari teks materi menggunakan Google Gemini API
- * dengan prompt berkualitas tinggi, multi-model fallback & sanitasi ketat.
+ * Core AI caller: potong teks ke maks 8000 kata, coba beberapa model Gemini
+ * secara berurutan (fallback 503/429), lalu parse respons JSON.
  */
-export async function generateStudyMaterials(
-  rawText: string
-): Promise<StudyMaterialsResult> {
+async function callAiWithFallback(params: AiCallParams): Promise<AiCallResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey.trim() === "") {
     throw new Error(
@@ -125,14 +228,14 @@ export async function generateStudyMaterials(
   }
 
   // Cek batas kata (maks ~8000 kata sesuai Section 9 PRD)
-  const words = rawText.trim().split(/\s+/).filter(Boolean);
+  const words = params.rawText.trim().split(/\s+/).filter(Boolean);
   const isTruncated = words.length > MAX_WORDS_LIMIT;
   const processedText = isTruncated
     ? words.slice(0, MAX_WORDS_LIMIT).join(" ")
-    : rawText;
+    : params.rawText;
 
   const configuredModel = process.env.GEMINI_MODEL;
-  
+
   // Susun daftar model unik yang akan dicoba berurutan
   const modelCandidates = Array.from(
     new Set(
@@ -143,7 +246,7 @@ export async function generateStudyMaterials(
   );
 
   const ai = new GoogleGenAI({ apiKey });
-  const prompt = `Berikut adalah materi pembelajaran yang harus dianalisis:\n\n---\n${processedText}\n---\n\nEkstrak flashcards konsep spesifik dan quiz pilihan ganda bermutu dari materi di atas dalam format JSON.`;
+  const prompt = `Berikut adalah materi pembelajaran yang harus dianalisis:\n\n---\n${processedText}\n---\n\n${params.promptSuffix}`;
 
   let lastError: unknown = null;
   const startTime = Date.now();
@@ -161,51 +264,11 @@ export async function generateStudyMaterials(
         model: currentModel,
         contents: prompt,
         config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
+          systemInstruction: params.systemInstruction,
           temperature: 0.2, // Rendah untuk deterministik & jawaban konsisten
           maxOutputTokens: 3072,
           responseMimeType: "application/json",
-          responseSchema: {
-            type: "object",
-            properties: {
-              flashcards: {
-                type: "array",
-                description: "Daftar istilah penting dan definisi ringkas",
-                items: {
-                  type: "object",
-                  properties: {
-                    term: { type: "string", description: "Istilah teknis atau konsep inti spesifik" },
-                    definition: {
-                      type: "string",
-                      description: "Definisi singkat dan padat (maks 2 kalimat)",
-                    },
-                  },
-                  required: ["term", "definition"],
-                },
-              },
-              quiz: {
-                type: "array",
-                description: "Daftar soal pilihan ganda konseptual berbobot",
-                items: {
-                  type: "object",
-                  properties: {
-                    question: { type: "string", description: "Pertanyaan yang menguji pemahaman" },
-                    options: {
-                      type: "array",
-                      description: "Tepat 4 opsi pilihan jawaban yang seimbang",
-                      items: { type: "string" },
-                    },
-                    correct_index: {
-                      type: "integer",
-                      description: "Index jawaban yang benar (0, 1, 2, atau 3)",
-                    },
-                  },
-                  required: ["question", "options", "correct_index"],
-                },
-              },
-            },
-            required: ["flashcards", "quiz"],
-          },
+          responseSchema: params.responseSchema,
         },
       });
 
@@ -221,21 +284,15 @@ export async function generateStudyMaterials(
       }
       cleanJson = cleanJson.trim();
 
-      const parsedRaw = JSON.parse(cleanJson);
-      const sanitized = sanitizeAiOutput(parsedRaw);
-
-      if (sanitized.flashcards.length === 0 && sanitized.quiz.length === 0) {
-        throw new Error("AI mengembalikan output kosong.");
-      }
+      const parsed = JSON.parse(cleanJson);
 
       const latencyMs = Date.now() - startTime;
       console.log(
-        `✅ [AI Generate] Berhasil menggunakan model ${currentModel} (${latencyMs}ms)! Ditemukan ${sanitized.flashcards.length} kartu & ${sanitized.quiz.length} soal valid.`
+        `✅ [AI Generate] Berhasil menggunakan model ${currentModel} (${latencyMs}ms)!`
       );
 
       return {
-        flashcards: sanitized.flashcards,
-        quiz: sanitized.quiz,
+        parsed,
         rawWordCount: words.length,
         isTruncated,
         usedModel: currentModel,
@@ -244,7 +301,7 @@ export async function generateStudyMaterials(
     } catch (error) {
       lastError = error;
       const errorMsg = error instanceof Error ? error.message : String(error);
-      
+
       console.warn(
         `⚠️ Model ${currentModel} mengalami kendala: ${errorMsg}. Beralih ke model cadangan berikutnya...`
       );
@@ -258,4 +315,68 @@ export async function generateStudyMaterials(
   throw lastError instanceof Error
     ? lastError
     : new Error("Gagal memproses materi dengan seluruh kandidat Gemini model.");
+}
+
+/**
+ * Generate flashcards & quiz questions dari teks materi menggunakan Google Gemini API
+ * dengan prompt berkualitas tinggi, multi-model fallback & sanitasi ketat.
+ */
+export async function generateStudyMaterials(
+  rawText: string
+): Promise<StudyMaterialsResult> {
+  const result = await callAiWithFallback({
+    systemInstruction: SYSTEM_INSTRUCTION,
+    responseSchema: FULL_RESPONSE_SCHEMA,
+    promptSuffix:
+      "Ekstrak flashcards konsep spesifik dan quiz pilihan ganda bermutu dari materi di atas dalam format JSON.",
+    rawText,
+  });
+
+  const sanitized = sanitizeAiOutput(result.parsed as {
+    flashcards?: unknown[];
+    quiz?: unknown[];
+  });
+
+  if (sanitized.flashcards.length === 0 && sanitized.quiz.length === 0) {
+    throw new Error("AI mengembalikan output kosong.");
+  }
+
+  return {
+    flashcards: sanitized.flashcards,
+    quiz: sanitized.quiz,
+    rawWordCount: result.rawWordCount,
+    isTruncated: result.isTruncated,
+    usedModel: result.usedModel,
+    latencyMs: result.latencyMs,
+  };
+}
+
+/**
+ * Generate HANYA quiz questions baru (untuk fitur regenerate quiz per set).
+ * Prompt khusus quiz, multi-model fallback & sanitasi ketat.
+ */
+export async function generateQuizQuestions(
+  rawText: string
+): Promise<QuizOnlyResult> {
+  const result = await callAiWithFallback({
+    systemInstruction: QUIZ_ONLY_SYSTEM_INSTRUCTION,
+    responseSchema: QUIZ_RESPONSE_SCHEMA,
+    promptSuffix:
+      "Buat soal pilihan ganda bermutu yang BARU dari materi di atas dalam format JSON (hanya array quiz).",
+    rawText,
+  });
+
+  const sanitized = sanitizeAiOutput(result.parsed as { quiz?: unknown[] });
+
+  if (sanitized.quiz.length === 0) {
+    throw new Error("AI tidak berhasil menghasilkan soal kuis baru.");
+  }
+
+  return {
+    quiz: sanitized.quiz,
+    rawWordCount: result.rawWordCount,
+    isTruncated: result.isTruncated,
+    usedModel: result.usedModel,
+    latencyMs: result.latencyMs,
+  };
 }
