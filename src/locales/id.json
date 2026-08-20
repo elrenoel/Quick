@@ -237,6 +237,32 @@
   "trial.answerWrong": "Salah",
   "trial.promoTitle": "Ingin menyimpan riwayat kuis dan membuka kuota generate 5x/hari?",
 
+  "trash.pageTitle": "Sampah",
+  "trash.pageDesc": "Dokumen yang dihapus akan masuk ke sini. Anda bisa memulihkannya atau menghapusnya secara permanen.",
+  "trash.emptyTitle": "Sampah kosong",
+  "trash.emptyDesc": "Tidak ada dokumen yang sedang di-trash.",
+  "trash.restore": "Pulihkan",
+  "trash.permanentDelete": "Hapus Permanen",
+  "trash.restoreSuccess": "Dokumen berhasil dipulihkan.",
+  "trash.restoreError": "Gagal memulihkan dokumen.",
+  "trash.permanentDeleteTitle": "Yakin hapus permanen?",
+  "trash.permanentDeleteConfirm": "Dokumen \"{title}\" akan dihapus secara permanen dan tidak bisa dibatalkan. Semua data terkait (flashcard, kuis, riwayat) juga akan ikut terhapus.",
+  "trash.permanentDeleteSuccess": "Dokumen berhasil dihapus permanen.",
+  "trash.permanentDeleteError": "Gagal menghapus dokumen secara permanen.",
+  "trash.autoDeleteInfo": "Dokumen akan otomatis terhapus permanen 30 hari setelah dipindah ke trash.",
+  "upload.contentLanguage": "Bahasa materi",
+  "upload.contentLanguageHint": "Pilih bahasa untuk flashcard & soal kuis yang dihasilkan AI.",
+  "upload.contentLanguageAuto": "Sesuai bahasa PDF sumber",
+  "upload.contentLanguageId": "Bahasa Indonesia",
+  "upload.contentLanguageEn": "English",
+
+  "trash.backToHistory": "Kembali ke Riwayat",
+  "trash.trashedAt": "Dihapus: {date}",
+
+  "history.delete": "Hapus",
+  "history.deleteConfirmTitle": "Yakin hapus dokumen ini?",
+  "history.deleteConfirmMessage": "Dokumen \"{title}\" akan dipindahkan ke sampah. Anda bisa memulihkannya nanti dari halaman Sampah.",
+
   "footer.tagline": "Quick — AI Flashcard & Quiz App",
   "footer.stage": "Stage 8.7: i18n ID/EN"
 }

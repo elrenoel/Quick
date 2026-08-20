@@ -51,7 +51,7 @@ export async function POST(
 
     // Pastikan dokumen milik user yang login dan punya raw_text
     const [doc] = await db
-      .select({ id: documents.id, title: documents.title, rawText: documents.rawText })
+      .select({ id: documents.id, title: documents.title, rawText: documents.rawText, contentLanguage: documents.contentLanguage })
       .from(documents)
       .where(and(eq(documents.id, id), eq(documents.userId, session.user.id)))
       .limit(1);
@@ -110,8 +110,8 @@ export async function POST(
       label = `Set ${existingSets.length + 1}`;
     }
 
-    // Panggil AI — khusus quiz saja
-    const aiResult = await generateQuizQuestions(doc.rawText);
+    // Panggil AI — khusus quiz saja (gunakan contentLanguage dokumen jika ada)
+    const aiResult = await generateQuizQuestions(doc.rawText, doc.contentLanguage ?? undefined);
 
     // Simpan set + soal baru (atomic: gagal = rollback)
     let newQuizSetId: string | null = null;

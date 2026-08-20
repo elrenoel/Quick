@@ -4,6 +4,7 @@ import { useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signUp, signIn } from "@/lib/auth-client";
+import { useSession } from "@/lib/session-provider";
 import { useI18n, type TranslationKey } from "@/lib/i18n";
 import {
   ArrowRight,
@@ -62,6 +63,7 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useI18n();
+  const { invalidate: invalidateSession } = useSession();
 
   const googleNotice = searchParams.get("google_error");
   const googleEmail = searchParams.get("email") ?? "";
@@ -181,6 +183,7 @@ function RegisterForm() {
         }
       }
 
+      invalidateSession();
       router.push("/");
       router.refresh();
     } catch (err: unknown) {

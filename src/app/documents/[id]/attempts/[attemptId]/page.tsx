@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -13,6 +12,8 @@ import {
 import ErrorState from "@/components/ErrorState";
 import { useI18n } from "@/lib/i18n";
 import { t as st } from "@/lib/t";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { formatDateTime } from "@/lib/format-date";
 
 const OPTION_LABELS = ["A", "B", "C", "D"];
@@ -57,6 +58,24 @@ function attemptGrade(percentage: number): { label: string; className: string } 
   return { label: st("attempt.grade.study"), className: "bg-rose-100 text-rose-800 border-rose-200" };
 }
 
+async function fetchAttempts(docId: string): Promise<{ document: { id: string; title: string }; attempts: QuizAttempt[] }> {
+  const res = await fetch(`/api/documents/${docId}/attempts`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Server error ${res.status}`);
+  }
+  return res.json();
+}
+
+async function fetchQuizQuestions(docId: string, setId: string): Promise<{ quiz: QuizQuestion[] }> {
+  const res = await fetch(`/api/documents/${docId}/quiz?setId=${setId}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Server error ${res.status}`);
+  }
+  return res.json();
+}
+
 export default function AttemptDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -64,60 +83,36 @@ export default function AttemptDetailPage() {
   const docId = (params?.id as string) || "";
   const attemptId = (params?.attemptId as string) || "";
 
-  const [documentTitle, setDocumentTitle] = useState("");
-  const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ── Step 1: Fetch attempts list to find this attempt ───────────────────────
+  const {
+    data: attemptsData,
+    isLoading: attemptsLoading,
+    error: attemptsError,
+  } = useQuery({
+    queryKey: queryKeys.attempts(docId),
+    queryFn: () => fetchAttempts(docId),
+    enabled: !!docId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-  useEffect(() => {
-    if (!docId || !attemptId) {
-      router.replace("/history");
-      return;
-    }
+  // Find the specific attempt
+  const attempt = attemptsData?.attempts?.find(
+    (a: QuizAttempt) => a.id === attemptId
+  );
+  const documentTitle = attemptsData?.document?.title || "";
 
-    async function fetchData() {
-      try {
-        const attemptsRes = await fetch(`/api/documents/${docId}/attempts`);
-        if (!attemptsRes.ok) {
-          const body = await attemptsRes.json().catch(() => ({}));
-          throw new Error(body.error || `Server error ${attemptsRes.status}`);
-        }
+  // ── Step 2: Fetch quiz questions for this attempt's set (if available) ─────
+  const quizSetId = attempt?.quizSetId;
 
-        const attemptsData = await attemptsRes.json();
-        setDocumentTitle(attemptsData.document?.title || "Dokumen");
+  const { data: quizData } = useQuery({
+    queryKey: queryKeys.quiz(docId, quizSetId),
+    queryFn: () => fetchQuizQuestions(docId, quizSetId!),
+    enabled: !!docId && !!quizSetId,
+  });
 
-        const found = (attemptsData.attempts || []).find(
-          (a: QuizAttempt) => a.id === attemptId
-        );
-        if (!found) {
-          throw new Error("Attempt tidak ditemukan.");
-        }
-        setAttempt(found);
+  const questions: QuizQuestion[] = quizData?.quiz || [];
 
-        // Ambil soal dari SET tempat attempt ini dikerjakan
-        if (found.quizSetId) {
-          const quizRes = await fetch(
-            `/api/documents/${docId}/quiz?setId=${found.quizSetId}`
-          );
-          if (quizRes.ok) {
-            const quizData = await quizRes.json();
-            setQuestions(quizData.quiz || []);
-          }
-        }
-      } catch (err: unknown) {
-        setError(
-          err instanceof Error ? err.message : "Gagal memuat detail attempt."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchData();
-  }, [docId, attemptId, router]);
-
-  if (isLoading) {
+  if (attemptsLoading) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
         <p className="text-sm text-neutral-500 font-mono">{t("attempt.loading")}</p>
@@ -125,12 +120,12 @@ export default function AttemptDetailPage() {
     );
   }
 
-  if (error || !attempt) {
+  if (attemptsError || !attempt) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center px-6">
         <ErrorState
           title={t("attempt.notFoundTitle")}
-          message={error || t("attempt.notFound")}
+          message={attemptsError?.message || t("attempt.notFound")}
           actions={[
             { label: t("attempt.backToAttempts"), href: `/documents/${docId}/attempts`, variant: "secondary" },
           ]}
@@ -143,7 +138,7 @@ export default function AttemptDetailPage() {
     attempt.total > 0 ? Math.round((attempt.score / attempt.total) * 100) : 0;
   const grade = attemptGrade(percentage);
 
-  // Susun review dari answers tersimpan + soal kuis
+  // Build review from saved answers + quiz questions
   const answersByQuestion = new Map(
     (attempt.answers || []).map((a) => [a.questionId, a])
   );
@@ -207,7 +202,7 @@ export default function AttemptDetailPage() {
           </div>
 
           <p className="text-sm text-neutral-600 mb-3">
-            <strong className="text-neutral-900">{attempt.score}</strong> / 
+            <strong className="text-neutral-900">{attempt.score}</strong> /{" "}
             <strong className="text-neutral-900">{attempt.total}</strong>
           </p>
 
@@ -218,7 +213,7 @@ export default function AttemptDetailPage() {
           </span>
 
           <p className="text-[11px] text-neutral-400 font-mono mt-4">
-            {attempt.quizSetLabel ? `${attempt.quizSetLabel} • ` : ""}
+            {attempt.quizSetLabel ? `${attempt.quizSetLabel} · ` : ""}
             {formatDateTime(attempt.createdAt)}
           </p>
 
@@ -254,7 +249,7 @@ export default function AttemptDetailPage() {
                 {t("attempt.reviewTitle")}
               </h2>
               <span className="text-xs text-neutral-500 font-mono">
-                {review.length} soal
+                {review.length} Soal
               </span>
             </div>
 
@@ -377,7 +372,7 @@ export default function AttemptDetailPage() {
 
       {/* Minimal Footer */}
       <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
-        Quick — Detail Attempt Ujian
+        Quick — {t("attempt.reviewTitle")}
       </footer>
     </div>
   );

@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const customTitle = (formData.get("title") as string) || null;
+    const contentLanguage = (formData.get("contentLanguage") as string) || "auto";
 
     if (!file) {
       return NextResponse.json(
@@ -151,7 +152,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Generate dengan AI
-    const aiResult = await generateStudyMaterials(text);
+    const aiResult = await generateStudyMaterials(text, contentLanguage);
 
     // 7. Simpan ke database (atomic: gagal = rollback semua)
     let insertedDocId: string | null = null;
@@ -164,6 +165,7 @@ export async function POST(request: NextRequest) {
           title,
           rawText: text,
           sessionId: null,
+          contentLanguage,
         })
         .returning();
       insertedDocId = insertedDoc.id;

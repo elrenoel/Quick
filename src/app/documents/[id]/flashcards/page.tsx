@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import ErrorState from "@/components/ErrorState";
 import { useI18n } from "@/lib/i18n";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { MOCK_DOCUMENT } from "@/lib/mock-data";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -37,6 +39,24 @@ function CardSkeleton() {
   );
 }
 
+interface FlashcardsApiResponse {
+  flashcards: Flashcard[];
+  documentTitle: string;
+}
+
+async function fetchFlashcards(docId: string): Promise<FlashcardsApiResponse> {
+  const res = await fetch(`/api/documents/${docId}/flashcards`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Server error ${res.status}`);
+  }
+  const data = await res.json();
+  if (!data.flashcards || data.flashcards.length === 0) {
+    throw new Error("No flashcards found for this document.");
+  }
+  return data;
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function FlashcardsPage() {
   const params = useParams();
@@ -46,73 +66,34 @@ export default function FlashcardsPage() {
 
   const isDemo = docId === "demo-os-memory";
 
-  const [cards, setCards] = useState<Flashcard[]>([]);
-  const [documentTitle, setDocumentTitle] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ── Fetch flashcards with useQuery ─────────────────────────────────────────
+  const {
+    data: flashcardsData,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: queryKeys.flashcards(docId),
+    queryFn: () => fetchFlashcards(docId),
+    enabled: !!docId && !isDemo,
+  });
 
-  // Retry function: refetch flashcards on error
-  const handleRetry = () => {
-    setIsLoading(true);
-    setError(null);
-    fetch(`/api/documents/${docId}/flashcards`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Gagal memuat flashcard.");
-        return res.json();
-      })
-      .then((data) => {
-        if (!data.flashcards || data.flashcards.length === 0) {
-          throw new Error("Tidak ada flashcard yang ditemukan untuk dokumen ini.");
-        }
-        setCards(data.flashcards);
-        setDocumentTitle(data.documentTitle || "Materi Pembelajaran");
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Gagal memuat flashcard.");
-      })
-      .finally(() => setIsLoading(false));
-  };
+  // Demo mode: use mock data
+  const cards: Flashcard[] = isDemo
+    ? (MOCK_DOCUMENT.flashcards as Flashcard[])
+    : flashcardsData?.flashcards || [];
+  const documentTitle = isDemo
+    ? MOCK_DOCUMENT.title
+    : flashcardsData?.documentTitle || "";
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  // ── Fetch flashcards ───────────────────────────────────────────────────────
+  // Reset index when data changes
   useEffect(() => {
-    if (!docId) {
-      router.replace("/");
-      return;
-    }
-
-    if (isDemo) {
-      // Use mock data for the demo route
-      setCards(MOCK_DOCUMENT.flashcards as Flashcard[]);
-      setDocumentTitle(MOCK_DOCUMENT.title);
-      setIsLoading(false);
-      return;
-    }
-
-    async function fetchFlashcards() {
-      try {
-        const res = await fetch(`/api/documents/${docId}/flashcards`);
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || `Server error ${res.status}`);
-        }
-        const data = await res.json();
-        if (!data.flashcards || data.flashcards.length === 0) {
-          throw new Error("Tidak ada flashcard yang ditemukan untuk dokumen ini.");
-        }
-        setCards(data.flashcards);
-        setDocumentTitle(data.documentTitle || "Materi Pembelajaran");
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Gagal memuat flashcard.");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchFlashcards();
-  }, [docId, isDemo, router]);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+  }, [cards.length]);
 
   // ── Keyboard navigation ────────────────────────────────────────────────────
   useEffect(() => {
@@ -157,6 +138,10 @@ export default function FlashcardsPage() {
   const currentCard = cards[currentIndex];
   const progressPercent = cards.length > 0 ? ((currentIndex + 1) / cards.length) * 100 : 0;
 
+  const handleRetry = () => {
+    refetch();
+  };
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
@@ -167,7 +152,7 @@ export default function FlashcardsPage() {
             <Link
               href="/"
               className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-              title="Kembali ke Beranda"
+              title={t("error.backToHome")}
             >
               <ChevronLeft className="w-4 h-4" />
             </Link>
@@ -181,7 +166,7 @@ export default function FlashcardsPage() {
               </h1>
               <p className="text-[11px] text-neutral-500 font-mono">
                 Flashcards
-                {!isLoading && cards.length > 0 && ` \u00b7 ${cards.length} ${t("flashcards.konsep")}`}
+                {!isLoading && cards.length > 0 && ` · ${cards.length} ${t("flashcards.konsep")}`}
               </p>
             </div>
           </div>
@@ -258,7 +243,7 @@ export default function FlashcardsPage() {
                   <div className="flex items-center justify-between text-xs text-neutral-400">
                     <span className="font-mono uppercase tracking-wider text-[10px]">{t("flashcards.termLabel")}</span>
                     <span className="inline-flex items-center gap-1 text-neutral-500 group-hover:text-neutral-900 transition">
-                      <RotateCw className="w-3 h-3" /> Balik kartu
+                      <RotateCw className="w-3 h-3" /> {t("flashcards.flipCard")}
                     </span>
                   </div>
 
@@ -276,9 +261,9 @@ export default function FlashcardsPage() {
                 {/* BACK SIDE (Definition) */}
                 <div className="absolute inset-0 bg-neutral-900 text-white border border-neutral-900 rounded-2xl p-8 flex flex-col justify-between backface-hidden rotate-y-180 shadow-md">
                   <div className="flex items-center justify-between text-xs text-neutral-400">
-                    <span className="font-mono uppercase tracking-wider text-[10px] text-neutral-300">Definisi</span>
+                    <span className="font-mono uppercase tracking-wider text-[10px] text-neutral-300">{t("flashcards.definitionLabel")}</span>
                     <span className="inline-flex items-center gap-1 text-neutral-400">
-                      <RotateCw className="w-3 h-3" /> Balik ke istilah
+                      <RotateCw className="w-3 h-3" /> {t("flashcards.flipToTerm")}
                     </span>
                   </div>
 
@@ -303,7 +288,7 @@ export default function FlashcardsPage() {
                 className="flex-1 py-3 px-4 rounded-xl bg-white border border-neutral-200 text-xs sm:text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:pointer-events-none transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span>Sebelumnya</span>
+                <span>{t("flashcards.previous")}</span>
               </button>
 
               <button
@@ -311,7 +296,7 @@ export default function FlashcardsPage() {
                 className="py-3 px-4 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-xs sm:text-sm font-medium text-neutral-800 transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <RotateCw className="w-4 h-4" />
-                <span className="hidden sm:inline">Balik Kartu</span>
+                <span className="hidden sm:inline">{t("flashcards.flipButton")}</span>
               </button>
 
               <button
@@ -319,7 +304,7 @@ export default function FlashcardsPage() {
                 disabled={currentIndex === cards.length - 1}
                 className="flex-1 py-3 px-4 rounded-xl bg-neutral-900 text-white text-xs sm:text-sm font-medium hover:bg-neutral-800 disabled:opacity-40 disabled:pointer-events-none transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
               >
-                <span>Berikutnya</span>
+                <span>{t("flashcards.next")}</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -328,13 +313,13 @@ export default function FlashcardsPage() {
             {currentIndex === cards.length - 1 && (
               <div className="mt-8 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center w-full">
                 <p className="text-xs text-emerald-800 font-medium mb-2">
-                  🎉 Anda sudah menyelesaikan semua flashcard di materi ini!
+                  🎉 {t("flashcards.endMessage")}
                 </p>
                 <Link
                   href={`/documents/${docId}/quiz`}
                   className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 transition"
                 >
-                  <span>Uji Pemahaman: Mulai Quiz</span>
+                  <span>{t("flashcards.startQuizButton")}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>

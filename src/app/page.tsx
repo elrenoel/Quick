@@ -17,8 +17,11 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { getOrCreateSessionId } from "@/lib/session";
-import { useSession, signOut } from "@/lib/auth-client";
+import { signOut } from "@/lib/auth-client";
+import { useSession } from "@/lib/session-provider";
 import { useI18n } from "@/lib/i18n";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import LanguageToggle from "@/components/LanguageToggle";
 
 const MAX_FILE_SIZE_MB = 15;
@@ -106,19 +109,40 @@ function LoadingOverlay({ step }: { step: number }) {
 export default function LandingPage() {
   const router = useRouter();
   const { t } = useI18n();
-  const { data: session, isPending: isSessionPending } = useSession();
+  const { data: session, isPending: isSessionPending, invalidate: invalidateSession } = useSession();
+  const queryClient = useQueryClient();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documentName, setDocumentName] = useState("");
+  const [contentLanguage, setContentLanguage] = useState("auto");
   const [isDragging, setIsDragging] = useState(false);
   const [loadingStep, setLoadingStep] = useState<number>(-1); // -1 = not loading
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [quotaInfo, setQuotaInfo] = useState<{
+
+  // ── Fetch daily quota with useQuery ──────────────────────────────────────
+  const { data: quotaData } = useQuery<{
     remainingToday: number;
     usedToday: number;
     dailyLimit: number;
-  } | null>(null);
+  } | null>({
+    queryKey: queryKeys.quota,
+    queryFn: async () => {
+      const res = await fetch("/api/documents/generate");
+      const data = await res.json();
+      if (typeof data.remainingToday === "number") {
+        return {
+          remainingToday: data.remainingToday,
+          usedToday: data.usedToday ?? 0,
+          dailyLimit: data.dailyLimit ?? 5,
+        };
+      }
+      return null;
+    },
+    enabled: !!session?.user,
+    staleTime: 2 * 60 * 1000,
+  });
+  const quotaInfo = quotaData ?? null;
 
   const isUploading = loadingStep >= 0;
 
@@ -152,30 +176,13 @@ export default function LandingPage() {
     }
   }, [session?.user, router]);
 
-  // 2. Ambil sisa kuota harian untuk user yang sudah login
-  useEffect(() => {
-    if (session?.user) {
-      fetch("/api/documents/generate")
-        .then((res) => res.json())
-        .then((data) => {
-          if (typeof data.remainingToday === "number") {
-            setQuotaInfo({
-              remainingToday: data.remainingToday,
-              usedToday: data.usedToday ?? 0,
-              dailyLimit: data.dailyLimit ?? 5,
-            });
-          }
-        })
-        .catch(() => {});
-    } else {
-      setQuotaInfo(null);
-    }
-  }, [session?.user]);
+
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
       await signOut();
+      invalidateSession();
       router.refresh();
     } catch {
       // Ignored
@@ -280,6 +287,7 @@ export default function LandingPage() {
         const formData = new FormData();
         formData.append("file", selectedFile);
         formData.append("title", documentName.trim());
+        formData.append("contentLanguage", contentLanguage);
 
         setLoadingStep(1); // Mengekstrak teks & analisis AI
         const trialRes = await fetch("/api/trial/generate", {
@@ -304,6 +312,7 @@ export default function LandingPage() {
             JSON.stringify({
               title: trialData.title,
               raw_text: trialData.raw_text,
+              content_language: trialData.content_language,
               flashcards: trialData.flashcards,
               quiz: trialData.quiz,
               totalPages: trialData.totalPages,
@@ -336,6 +345,7 @@ export default function LandingPage() {
       const formData = new FormData();
       formData.append("file", selectedFile);
       formData.append("title", documentName.trim());
+      formData.append("contentLanguage", contentLanguage);
 
       setLoadingStep(1); // Mengekstrak teks & validasi kuota
 
@@ -362,6 +372,9 @@ export default function LandingPage() {
       setLoadingStep(4); // Menyimpan ke DB
 
       await new Promise((r) => setTimeout(r, 400));
+
+      // Invalidate history cache so the new document appears immediately
+      queryClient.invalidateQueries({ queryKey: queryKeys.documents });
 
       // Navigate to flashcards page
       router.push(`/documents/${docId}/flashcards`);
@@ -559,6 +572,26 @@ export default function LandingPage() {
             <p className="mt-1.5 text-[11px] text-neutral-400">
               {t("upload.documentNameHint")}
             </p>
+
+            {/* Content Language Selector */}
+            <div className="mt-4">
+              <label className="block text-xs font-medium text-neutral-700 mb-1.5">
+                {t("upload.contentLanguage")}
+              </label>
+              <select
+                value={contentLanguage}
+                onChange={(e) => setContentLanguage(e.target.value)}
+                disabled={isUploading}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition disabled:opacity-50 cursor-pointer"
+              >
+                <option value="auto">{t("upload.contentLanguageAuto")}</option>
+                <option value="id">{t("upload.contentLanguageId")}</option>
+                <option value="en">{t("upload.contentLanguageEn")}</option>
+              </select>
+              <p className="mt-1.5 text-[11px] text-neutral-400">
+                {t("upload.contentLanguageHint")}
+              </p>
+            </div>
 
             {errorMessage && (
               <div className="mt-4 flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3 rounded-lg">

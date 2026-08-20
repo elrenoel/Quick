@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db, documents, quizAttempts } from "@/db";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, isNull } from "drizzle-orm";
 import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         createdAt: documents.createdAt,
       })
       .from(documents)
-      .where(eq(documents.userId, session.user.id))
+      .where(and(eq(documents.userId, session.user.id), isNull(documents.deletedAt)))
       .orderBy(desc(documents.createdAt));
 
     // Ambil skor attempt terakhir per dokumen (dari quiz_attempts, urut terbaru)

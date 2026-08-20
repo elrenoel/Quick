@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import QueryProvider from "@/lib/query-provider";
+import { SessionProvider } from "@/lib/session-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +30,11 @@ export default function RootLayout({
     <html lang="id" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full bg-neutral-50 text-neutral-900 font-sans flex flex-col selection:bg-neutral-900 selection:text-white">
         <ErrorBoundary>
-          <LanguageProvider>{children}</LanguageProvider>
+          <QueryProvider>
+            <SessionProvider>
+              <LanguageProvider>{children}</LanguageProvider>
+            </SessionProvider>
+          </QueryProvider>
         </ErrorBoundary>
       </body>
     </html>

@@ -198,6 +198,12 @@ export const auth = betterAuth({
       headers.set("location", target.toString());
     }),
   },
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // 5 minutes — avoids DB hit on every getSession call
+    },
+  },
   user: {
     additionalFields: {
       generationCountToday: {

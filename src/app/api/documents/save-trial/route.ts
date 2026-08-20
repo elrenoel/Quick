@@ -10,6 +10,7 @@ export const maxDuration = 60;
 type SaveTrialBody = {
   title: string;
   raw_text: string;
+  content_language?: string;
   flashcards: { term: string; definition: string }[];
   quiz: { question: string; options: string[]; correct_index: number }[];
 };
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
           title: body.title,
           rawText: body.raw_text,
           sessionId: null,
+          contentLanguage: body.content_language || "auto",
         })
         .returning();
       insertedDocId = insertedDoc.id;

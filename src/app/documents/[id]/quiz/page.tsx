@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import ErrorState from "@/components/ErrorState";
 import { useI18n } from "@/lib/i18n";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { getOrCreateSessionId } from "@/lib/session";
 import SubmitConfirmDialog from "@/components/SubmitConfirmDialog";
 
@@ -27,6 +29,24 @@ interface QuizSetOption {
   id: string;
   label: string;
   questionCount: number;
+}
+
+interface QuizApiResponse {
+  quiz: QuizQuestion[];
+  sets: QuizSetOption[];
+  quizSetId: string | null;
+  quizSetLabel: string | null;
+  documentTitle: string;
+}
+
+async function fetchQuiz(docId: string, setId?: string): Promise<QuizApiResponse> {
+  const query = setId ? `?setId=${setId}` : "";
+  const res = await fetch(`/api/documents/${docId}/quiz${query}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Server error ${res.status}`);
+  }
+  return res.json();
 }
 
 // ─── Skeleton ────────────────────────────────────────────────────────────────
@@ -49,18 +69,12 @@ export default function QuizPage() {
   const params = useParams();
   const router = useRouter();
   const { t } = useI18n();
+  const queryClient = useQueryClient();
   const docId = (params?.id as string) || "";
 
   const isDemo = docId === "demo-os-memory";
 
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [documentTitle, setDocumentTitle] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const [sets, setSets] = useState<QuizSetOption[]>([]);
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
-  const [selectedSetLabel, setSelectedSetLabel] = useState<string | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [regenerateError, setRegenerateError] = useState<string | null>(null);
   const [regenerateMessage, setRegenerateMessage] = useState<string | null>(null);
@@ -73,52 +87,33 @@ export default function QuizPage() {
 
   const optionLabels = ["A", "B", "C", "D"];
 
-  // ── Load quiz questions untuk set tertentu (default: set pertama) ──────────
-  const loadQuiz = useCallback(
-    async (targetSetId?: string) => {
-      try {
-        const query = targetSetId ? `?setId=${targetSetId}` : "";
-        const res = await fetch(`/api/documents/${docId}/quiz${query}`);
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || `Server error ${res.status}`);
-        }
-        const data = await res.json();
-        if (!data.quiz || data.quiz.length === 0) {
-          throw new Error("Tidak ada soal kuis yang ditemukan untuk dokumen ini.");
-        }
-        setQuestions(data.quiz);
-        setSets(data.sets || []);
-        setSelectedSetId(data.quizSetId || null);
-        setSelectedSetLabel(data.quizSetLabel || null);
-        setDocumentTitle(data.documentTitle || "Materi Pembelajaran");
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Gagal memuat soal kuis.");
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [docId]
-  );
+  // ── Fetch quiz questions with useQuery ─────────────────────────────────────
+  const {
+    data: quizData,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: queryKeys.quiz(docId, selectedSetId),
+    queryFn: () => fetchQuiz(docId, selectedSetId ?? undefined),
+    enabled: !!docId && !isDemo,
+  });
 
-  // ── Fetch quiz questions ───────────────────────────────────────────────────
+  // Demo mode
+  const questions: QuizQuestion[] = isDemo
+    ? (MOCK_DOCUMENT.quiz as QuizQuestion[])
+    : quizData?.quiz || [];
+  const sets: QuizSetOption[] = isDemo ? [] : quizData?.sets || [];
+  const documentTitle = isDemo ? MOCK_DOCUMENT.title : quizData?.documentTitle || "";
+
+  // Sync selectedSetLabel from quizData
+  const selectedSetLabel = isDemo ? null : quizData?.quizSetLabel || null;
+
+  // Reset index when data changes
   useEffect(() => {
-    if (!docId) {
-      router.replace("/");
-      return;
-    }
-
-    if (isDemo) {
-      setQuestions(MOCK_DOCUMENT.quiz as QuizQuestion[]);
-      setDocumentTitle(MOCK_DOCUMENT.title);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    loadQuiz();
-  }, [docId, isDemo, router, loadQuiz]);
+    setCurrentIndex(0);
+    setSelectedAnswers({});
+  }, [selectedSetId, questions.length]);
 
   const currentQuestion = questions[currentIndex];
   const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
@@ -138,19 +133,16 @@ export default function QuizPage() {
     if (currentIndex > 0) setCurrentIndex((prev) => prev - 1);
   };
 
-  // ── Ganti quiz set ─────────────────────────────────────────────────────────
+  // ── Switch quiz set (triggers useQuery refetch via queryKey change) ─────────
   const handleSetChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const setId = e.target.value;
     if (!setId || setId === selectedSetId) return;
-    setIsLoading(true);
-    setError(null);
     setSubmitError(null);
-    setCurrentIndex(0);
-    setSelectedAnswers({});
-    loadQuiz(setId);
+    setSelectedSetId(setId);
+    // useQuery will refetch automatically because queryKey changed
   };
 
-  // ── Buat soal baru (regenerate quiz set) ──────────────────────────────────
+  // ── Regenerate quiz set ────────────────────────────────────────────────────
   const handleRegenerate = async () => {
     setIsRegenerating(true);
     setRegenerateError(null);
@@ -171,24 +163,18 @@ export default function QuizPage() {
           );
           return;
         }
-        throw new Error(body.error || "Gagal membuat soal baru.");
+        throw new Error(body.error || t("quiz.newSetError"));
       }
 
       const data = await res.json();
 
-      // Muat set baru dan langsung pilih
-      setIsLoading(true);
-      setError(null);
-      setSubmitError(null);
-      setCurrentIndex(0);
-      setSelectedAnswers({});
-      await loadQuiz(data.quizSet?.id);
-      setRegenerateMessage(
-        data.message || "Soal baru berhasil dibuat."
-      );
+      // Invalidate and refetch with the new set
+      setSelectedSetId(data.quizSet?.id || null);
+      queryClient.invalidateQueries({ queryKey: queryKeys.quiz(docId) });
+      setRegenerateMessage(data.message || t("quiz.newSetSuccess"));
     } catch (err: unknown) {
       setRegenerateError(
-        err instanceof Error ? err.message : "Gagal membuat soal baru."
+        err instanceof Error ? err.message : t("quiz.newSetError")
       );
     } finally {
       setIsRegenerating(false);
@@ -201,7 +187,7 @@ export default function QuizPage() {
     setSubmitError(null);
 
     if (isDemo) {
-      // Demo mode: compute score locally from mock data (correct_index is available)
+      // Demo mode: compute score locally
       const mockQuestions = MOCK_DOCUMENT.quiz as Array<QuizQuestion & { correctIndex?: number; correct_index?: number }>;
       let correctCount = 0;
       const reviewData = mockQuestions.map((q) => {
@@ -237,7 +223,6 @@ export default function QuizPage() {
     try {
       const sessionId = getOrCreateSessionId();
 
-      // Build answers array
       const answers = Object.entries(selectedAnswers).map(([questionId, selectedIndex]) => ({
         questionId,
         selectedIndex,
@@ -256,7 +241,6 @@ export default function QuizPage() {
 
       const data = await res.json();
 
-      // Persist result in sessionStorage so the results page can read it
       const resultPayload = {
         score: data.score,
         total: data.total,
@@ -267,13 +251,20 @@ export default function QuizPage() {
       };
       sessionStorage.setItem(`quiz_result_${docId}`, JSON.stringify(resultPayload));
 
+      // Invalidate attempts cache so the new score appears in history immediately
+      queryClient.invalidateQueries({ queryKey: queryKeys.attempts(docId) });
+
       router.push(`/documents/${docId}/quiz/results`);
     } catch (err: unknown) {
       setSubmitError(
-        err instanceof Error ? err.message : "Gagal mengirim jawaban. Silakan coba lagi."
+        err instanceof Error ? err.message : t("quiz.submitError")
       );
       setIsSubmitting(false);
     }
+  };
+
+  const handleRetry = () => {
+    refetch();
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -300,14 +291,15 @@ export default function QuizPage() {
               </h1>
               <p className="text-[11px] text-neutral-500 font-mono">
                 Quiz Pilihan Ganda
-                {!isLoading && selectedSetLabel && ` • ${selectedSetLabel}`}
-                {!isLoading && questions.length > 0 && ` • ${questions.length} Soal`}
+                {!isLoading && selectedSetLabel && ` · ${selectedSetLabel}`}
+                {!isLoading && questions.length > 0 && ` · ${questions.length} Soal`}
               </p>
             </div>
           </div>
 
           {!isLoading && questions.length > 0 && (
-            <div className="flex items-center gap-2 text-xs font-mono text-neutral-600 bg-neutral-100 px-3 py-1.5 rounded-lg border border-neutral-200">                <span>{t("quiz.answered")}</span>
+            <div className="flex items-center gap-2 text-xs font-mono text-neutral-600 bg-neutral-100 px-3 py-1.5 rounded-lg border border-neutral-200">
+              <span>{t("quiz.answered")}</span>
               <span className="font-bold text-neutral-900">
                 {answeredCount} / {questions.length}
               </span>
@@ -343,7 +335,7 @@ export default function QuizPage() {
             title={t("quiz.notFoundTitle")}
             message={t("quiz.notFoundMessage")}
             actions={[
-              { label: t("error.retry"), onClick: () => { setIsLoading(true); setError(null); loadQuiz(); }, variant: "primary" },
+              { label: t("error.retry"), onClick: handleRetry, variant: "primary" },
               { label: t("error.home"), href: "/", variant: "secondary" },
             ]}
           />
@@ -354,7 +346,7 @@ export default function QuizPage() {
           <div className="mb-6 space-y-3">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <label className="flex items-center gap-2 text-xs text-neutral-600">
-                <span className="font-medium">Set Soal:</span>
+                <span className="font-medium">{t("quiz.setLabel")}</span>
                 <select
                   value={selectedSetId ?? ""}
                   onChange={handleSetChange}
@@ -363,7 +355,7 @@ export default function QuizPage() {
                 >
                   {sets.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.label} ({s.questionCount} soal)
+                      {s.label} ({s.questionCount} Soal)
                     </option>
                   ))}
                 </select>
@@ -390,7 +382,7 @@ export default function QuizPage() {
                   onClick={handleRegenerate}
                   className="mt-2 text-xs text-neutral-900 font-medium underline underline-offset-2 hover:text-neutral-600 transition cursor-pointer"
                 >
-                  Coba lagi
+                  {t("error.retry")}
                 </button>
               </div>
             )}
@@ -410,10 +402,10 @@ export default function QuizPage() {
             {/* Question Header */}
             <div className="flex items-center justify-between mb-6">
               <span className="text-xs font-mono font-medium px-3 py-1 rounded-full bg-neutral-900 text-white shadow-2xs">
-                Soal {currentIndex + 1} dari {questions.length}
+                {t("quiz.questionOf", { current: currentIndex + 1, total: questions.length })}
               </span>
               <span className="text-xs text-neutral-400 font-mono">
-                Pilih 1 jawaban yang paling tepat
+                {t("quiz.pickOne")}
               </span>
             </div>
 
@@ -469,7 +461,7 @@ export default function QuizPage() {
                 className="py-3 px-5 rounded-xl bg-white border border-neutral-200 text-xs sm:text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:pointer-events-none transition flex items-center gap-2 cursor-pointer shadow-2xs"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span>Sebelumnya</span>
+                <span>{t("quiz.previous")}</span>
               </button>
 
               {currentIndex === questions.length - 1 ? (
@@ -481,12 +473,12 @@ export default function QuizPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Menghitung Skor...</span>
+                      <span>{t("quiz.calculatingScore")}</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>Selesaikan &amp; Lihat Skor</span>
+                      <span>{t("quiz.finishAndScore")}</span>
                     </>
                   )}
                 </button>
@@ -495,7 +487,7 @@ export default function QuizPage() {
                   onClick={handleNext}
                   className="py-3 px-6 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-xs sm:text-sm font-medium transition flex items-center gap-2 cursor-pointer shadow-xs active:scale-[0.98]"
                 >
-                  <span>Soal Berikutnya</span>
+                  <span>{t("quiz.nextQuestion")}</span>
                   <ChevronRight className="w-4 h-4" />
                 </button>
               )}

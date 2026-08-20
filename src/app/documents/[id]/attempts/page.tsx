@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -11,6 +10,8 @@ import {
 import ErrorState from "@/components/ErrorState";
 import { useI18n } from "@/lib/i18n";
 import { t as st } from "@/lib/t";
+import { useQuery } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { formatDateTime } from "@/lib/format-date";
 
 interface QuizAttempt {
@@ -27,6 +28,11 @@ interface QuizAttempt {
   quizSetLabel?: string | null;
 }
 
+interface AttemptsApiResponse {
+  document: { id: string; title: string };
+  attempts: QuizAttempt[];
+}
+
 function attemptGrade(percentage: number): { label: string; className: string } {
   if (percentage >= 85)
     return { label: st("attempt.grade.great"), className: "bg-emerald-100 text-emerald-800 border-emerald-200" };
@@ -37,44 +43,39 @@ function attemptGrade(percentage: number): { label: string; className: string } 
   return { label: st("attempt.grade.study"), className: "bg-rose-100 text-rose-800 border-rose-200" };
 }
 
+async function fetchAttempts(docId: string): Promise<AttemptsApiResponse> {
+  const res = await fetch(`/api/documents/${docId}/attempts`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Server error ${res.status}`);
+  }
+  return res.json();
+}
+
 export default function DocumentAttemptsPage() {
   const params = useParams();
   const router = useRouter();
   const { t } = useI18n();
   const docId = (params?.id as string) || "";
 
-  const [documentTitle, setDocumentTitle] = useState("");
-  const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: queryKeys.attempts(docId),
+    queryFn: () => fetchAttempts(docId),
+    enabled: !!docId,
+    staleTime: 5 * 60 * 1000, // 5 minutes — avoid re-fetch when navigating back
+  });
 
-  useEffect(() => {
-    if (!docId) {
-      router.replace("/");
-      return;
-    }
+  const documentTitle = data?.document?.title || "";
+  const attempts = data?.attempts || [];
 
-    async function fetchAttempts() {
-      try {
-        const res = await fetch(`/api/documents/${docId}/attempts`);
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || `Server error ${res.status}`);
-        }
-        const data = await res.json();
-        setDocumentTitle(data.document?.title || "Dokumen");
-        setAttempts(data.attempts || []);
-      } catch (err: unknown) {
-        setError(
-          err instanceof Error ? err.message : "Gagal memuat riwayat ujian."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchAttempts();
-  }, [docId, router]);
+  const handleRetry = () => {
+    refetch();
+  };
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
@@ -85,7 +86,7 @@ export default function DocumentAttemptsPage() {
             <Link
               href="/history"
               className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-              title="Kembali ke Riwayat Dokumen"
+              title={t("history.pageTitle")}
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
@@ -98,8 +99,8 @@ export default function DocumentAttemptsPage() {
                 )}
               </h1>
               <p className="text-[11px] text-neutral-500 font-mono">
-                Riwayat Ujian
-                {!isLoading && attempts.length > 0 && ` • ${attempts.length} Attempt`}
+                {t("attempts.pageTitle")}
+                {!isLoading && attempts.length > 0 && ` · ${attempts.length} Attempt`}
               </p>
             </div>
           </div>
@@ -111,11 +112,10 @@ export default function DocumentAttemptsPage() {
         {/* Page Header */}
         <div className="mb-6">
           <h2 className="text-lg sm:text-xl font-bold tracking-tight text-neutral-900 mb-1">
-            Riwayat Hasil Ujian
+            {t("attempts.pageTitle")}
           </h2>
           <p className="text-xs sm:text-sm text-neutral-500">
-            Semua percobaan kuis untuk dokumen ini, dari yang terbaru. Klik salah
-            satu untuk melihat detail jawaban.
+            {t("attempts.pageDesc")}
           </p>
         </div>
 
@@ -141,29 +141,13 @@ export default function DocumentAttemptsPage() {
         {!isLoading && error && (
           <div className="mb-6">
             <ErrorState
-              title="Gagal memuat riwayat"
-              message="Tidak bisa mengambil data riwayat ujian. Periksa koneksi internet Anda."
+              title={t("history.loadErrorTitle")}
+              message={t("history.loadErrorMessage")}
               compact
               actions={[
                 {
-                  label: "Coba Lagi",
-                  onClick: () => {
-                    setIsLoading(true);
-                    setError(null);
-                    fetch(`/api/documents/${docId}/attempts`)
-                      .then((res) => {
-                        if (!res.ok) throw new Error("Server error");
-                        return res.json();
-                      })
-                      .then((data) => {
-                        setDocumentTitle(data.document?.title || "Dokumen");
-                        setAttempts(data.attempts || []);
-                      })
-                      .catch((err: unknown) => {
-                        setError(err instanceof Error ? err.message : "Gagal memuat.");
-                      })
-                      .finally(() => setIsLoading(false));
-                  },
+                  label: t("error.retry"),
+                  onClick: handleRetry,
                   variant: "primary",
                 },
               ]}
@@ -193,12 +177,12 @@ export default function DocumentAttemptsPage() {
                     <div className="min-w-0">
                       <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
                         <span className="text-sm font-semibold text-neutral-900 tracking-tight">
-                          Skor: {attempt.score}/{attempt.total}
+                          {t("attempts.score")} {attempt.score}/{attempt.total}
                         </span>
                         <span
                           className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${grade.className}`}
                         >
-                          {percentage}% • {grade.label}
+                          {percentage}% · {grade.label}
                         </span>
                         {attempt.quizSetLabel && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-neutral-100 text-neutral-600 border border-neutral-200">
@@ -211,7 +195,7 @@ export default function DocumentAttemptsPage() {
                       </div>
                       {idx === 0 && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 mt-1">
-                          Attempt terbaru
+                          {t("attempts.latestAttempt")}
                         </span>
                       )}
                     </div>
@@ -233,17 +217,16 @@ export default function DocumentAttemptsPage() {
               <ClipboardList className="w-6 h-6" />
             </div>
             <h3 className="text-base font-semibold text-neutral-900 mb-1.5">
-              Belum ada ujian untuk dokumen ini
+              {t("attempts.emptyTitle")}
             </h3>
             <p className="text-xs text-neutral-500 max-w-sm mx-auto mb-6">
-              Kerjakan kuis dokumen ini terlebih dahulu, lalu riwayat skor akan
-              muncul di sini.
+              {t("attempts.emptyMessage")}
             </p>
             <Link
               href={`/documents/${docId}/quiz`}
               className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-800 transition shadow-2xs"
             >
-              Mulai Kuis Sekarang
+              {t("attempts.startQuiz")}
             </Link>
           </div>
         )}
@@ -251,7 +234,7 @@ export default function DocumentAttemptsPage() {
 
       {/* Minimal Footer */}
       <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
-        Quick — Riwayat Ujian
+        Quick — {t("attempts.pageTitle")}
       </footer>
     </div>
   );

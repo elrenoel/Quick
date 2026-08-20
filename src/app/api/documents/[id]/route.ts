@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db, documents } from "@/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
@@ -90,5 +90,82 @@ export async function PATCH(
     });
   } catch (error) {
     return handleApiError(error, "PATCH /api/documents/:id");
+  }
+}
+
+/**
+ * DELETE /api/documents/:id — Soft delete: set deleted_at (move to trash)
+ */
+export async function DELETE(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await props.params;
+
+    if (!id || !UUID_REGEX.test(id)) {
+      return NextResponse.json(
+        { success: false, error: "ID dokumen tidak valid." },
+        { status: 400 }
+      );
+    }
+
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session?.user) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Silakan masuk (login) terlebih dahulu.",
+          requireAuth: true,
+        },
+        { status: 401 }
+      );
+    }
+
+    // Pastikan dokumen milik user dan belum di-trash
+    const [existing] = await db
+      .select({ id: documents.id })
+      .from(documents)
+      .where(
+        and(
+          eq(documents.id, id),
+          eq(documents.userId, session.user.id),
+          isNull(documents.deletedAt)
+        )
+      )
+      .limit(1);
+
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, error: "Dokumen tidak ditemukan atau sudah di-trash." },
+        { status: 404 }
+      );
+    }
+
+    // Set deleted_at = now (soft delete)
+    const [updated] = await db
+      .update(documents)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(
+        and(
+          eq(documents.id, id),
+          eq(documents.userId, session.user.id)
+        )
+      )
+      .returning({ id: documents.id });
+
+    if (!updated) {
+      return NextResponse.json(
+        { success: false, error: "Gagal memindahkan dokumen ke trash." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Dokumen dipindahkan ke trash.",
+    });
+  } catch (error) {
+    return handleApiError(error, "DELETE /api/documents/:id");
   }
 }

@@ -72,6 +72,8 @@ export const documents = pgTable("documents", {
   rawText: text("raw_text").notNull(),
   sessionId: text("session_id"),
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at", { mode: "string" }),
+  contentLanguage: text("content_language").default("auto"),
 });
 
 // Flashcards Table

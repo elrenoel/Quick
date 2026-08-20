@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
+import { useSession } from "@/lib/session-provider";
 import { useI18n } from "@/lib/i18n";
 import { ArrowRight, AlertCircle, Loader2, ArrowLeft, Info } from "lucide-react";
 
@@ -11,6 +12,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useI18n();
+  const { invalidate: invalidateSession } = useSession();
   const noticeMessage = searchParams.get("message");
   const googleError = searchParams.get("google_error");
   const oauthError = searchParams.get("error");
@@ -88,6 +90,7 @@ function LoginForm() {
         }
       }
 
+      invalidateSession();
       router.push("/");
       router.refresh();
     } catch (err: unknown) {

@@ -321,14 +321,24 @@ async function callAiWithFallback(params: AiCallParams): Promise<AiCallResult> {
  * Generate flashcards & quiz questions dari teks materi menggunakan Google Gemini API
  * dengan prompt berkualitas tinggi, multi-model fallback & sanitasi ketat.
  */
+const LANGUAGE_INSTRUCTIONS: Record<string, string> = {
+  id: "\n\nPERHATIAN: Seluruh output flashcard (term & definition) DAN quiz (question & options) WAJIB dalam Bahasa Indonesia, terlepas dari bahasa asli materi sumber.",
+  en: "\n\nIMPORTANT: All flashcard output (term & definition) AND quiz output (question & options) MUST be in English, regardless of the source material's original language.",
+};
+
 export async function generateStudyMaterials(
-  rawText: string
+  rawText: string,
+  contentLanguage?: string
 ): Promise<StudyMaterialsResult> {
+  const langSuffix = contentLanguage && contentLanguage !== "auto"
+    ? LANGUAGE_INSTRUCTIONS[contentLanguage] || ""
+    : "";
+
   const result = await callAiWithFallback({
     systemInstruction: SYSTEM_INSTRUCTION,
     responseSchema: FULL_RESPONSE_SCHEMA,
     promptSuffix:
-      "Ekstrak flashcards konsep spesifik dan quiz pilihan ganda bermutu dari materi di atas dalam format JSON.",
+      `Ekstrak flashcards konsep spesifik dan quiz pilihan ganda bermutu dari materi di atas dalam format JSON.${langSuffix}`,
     rawText,
   });
 
@@ -356,13 +366,18 @@ export async function generateStudyMaterials(
  * Prompt khusus quiz, multi-model fallback & sanitasi ketat.
  */
 export async function generateQuizQuestions(
-  rawText: string
+  rawText: string,
+  contentLanguage?: string
 ): Promise<QuizOnlyResult> {
+  const langSuffix = contentLanguage && contentLanguage !== "auto"
+    ? LANGUAGE_INSTRUCTIONS[contentLanguage] || ""
+    : "";
+
   const result = await callAiWithFallback({
     systemInstruction: QUIZ_ONLY_SYSTEM_INSTRUCTION,
     responseSchema: QUIZ_RESPONSE_SCHEMA,
     promptSuffix:
-      "Buat soal pilihan ganda bermutu yang BARU dari materi di atas dalam format JSON (hanya array quiz).",
+      `Buat soal pilihan ganda bermutu yang BARU dari materi di atas dalam format JSON (hanya array quiz).${langSuffix}`,
     rawText,
   });
 

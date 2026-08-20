@@ -237,6 +237,32 @@
   "trial.answerWrong": "Wrong",
   "trial.promoTitle": "Want to save quiz history and unlock 5 generations/day?",
 
+  "trash.pageTitle": "Trash",
+  "trash.pageDesc": "Deleted documents go here. You can restore them or delete them permanently.",
+  "trash.emptyTitle": "Trash is empty",
+  "trash.emptyDesc": "No documents are currently in trash.",
+  "trash.restore": "Restore",
+  "trash.permanentDelete": "Delete Permanently",
+  "trash.restoreSuccess": "Document restored successfully.",
+  "trash.restoreError": "Failed to restore document.",
+  "trash.permanentDeleteTitle": "Delete permanently?",
+  "trash.permanentDeleteConfirm": "Document \"{title}\" will be permanently deleted and cannot be undone. All related data (flashcards, quizzes, history) will also be removed.",
+  "trash.permanentDeleteSuccess": "Document permanently deleted.",
+  "trash.permanentDeleteError": "Failed to permanently delete document.",
+  "trash.autoDeleteInfo": "Documents will be permanently deleted 30 days after being moved to trash.",
+  "upload.contentLanguage": "Content language",
+  "upload.contentLanguageHint": "Choose the language for AI-generated flashcards & quiz questions.",
+  "upload.contentLanguageAuto": "Match PDF source language",
+  "upload.contentLanguageId": "Bahasa Indonesia",
+  "upload.contentLanguageEn": "English",
+
+  "trash.backToHistory": "Back to History",
+  "trash.trashedAt": "Deleted: {date}",
+
+  "history.delete": "Delete",
+  "history.deleteConfirmTitle": "Delete this document?",
+  "history.deleteConfirmMessage": "Document \"{title}\" will be moved to trash. You can restore it later from the Trash page.",
+
   "footer.tagline": "Quick — AI Flashcard & Quiz App",
   "footer.stage": "Stage 8.7: i18n ID/EN"
 }

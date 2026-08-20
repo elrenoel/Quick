@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const customTitle = (formData.get("title") as string) || null;
+    const contentLanguage = (formData.get("contentLanguage") as string) || "auto";
 
     if (!file) {
       return NextResponse.json(
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Ekstraksi Flashcards & Quiz dengan AI Pipeline
-    const aiResult = await generateStudyMaterials(text);
+    const aiResult = await generateStudyMaterials(text, contentLanguage);
 
     if (aiResult.flashcards.length === 0 && aiResult.quiz.length === 0) {
       return NextResponse.json(
@@ -159,6 +160,7 @@ export async function POST(request: NextRequest) {
         success: true,
         title,
         raw_text: text,
+        content_language: contentLanguage,
         flashcards: aiResult.flashcards,
         quiz: aiResult.quiz,
         totalPages,

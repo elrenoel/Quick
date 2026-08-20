@@ -44,9 +44,9 @@ export async function POST(
       );
     }
 
-    // 2. Ekstrak materi dengan Gemini AI
+    // 2. Ekstrak materi dengan Gemini AI (gunakan contentLanguage dokumen jika ada)
     const { flashcards: generatedCards, quiz: generatedQuiz, isTruncated } =
-      await generateStudyMaterials(doc.rawText);
+      await generateStudyMaterials(doc.rawText, doc.contentLanguage ?? undefined);
 
     if (generatedCards.length === 0 && generatedQuiz.length === 0) {
       return NextResponse.json(
