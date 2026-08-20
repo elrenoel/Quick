@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db, documents, flashcards, quizQuestions, quizSets } from "@/db";
+import { eq } from "drizzle-orm";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -53,64 +55,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Insert dokumen ke database
-    const [insertedDoc] = await db
-      .insert(documents)
-      .values({
-        userId: session.user.id,
-        title: body.title,
-        rawText: body.raw_text,
-        sessionId: null,
-      })
-      .returning();
+    // 3. Insert ke database secara atomic (gagal = rollback semua)
+    let insertedDocId: string | null = null;
+    try {
+      const [insertedDoc] = await db
+        .insert(documents)
+        .values({
+          userId: session.user.id,
+          title: body.title,
+          rawText: body.raw_text,
+          sessionId: null,
+        })
+        .returning();
+      insertedDocId = insertedDoc.id;
 
-    // 4. Insert flashcards
-    if (body.flashcards.length > 0) {
-      await db.insert(flashcards).values(
-        body.flashcards.map((card) => ({
-          documentId: insertedDoc.id,
-          term: card.term,
-          definition: card.definition,
-        }))
-      );
-    }
+      // 4. Insert flashcards
+      if (body.flashcards.length > 0) {
+        await db.insert(flashcards).values(
+          body.flashcards.map((card) => ({
+            documentId: insertedDoc.id,
+            term: card.term,
+            definition: card.definition,
+          }))
+        );
+      }
 
-    // 5. Insert quiz questions (terhubung ke quiz set default "Set 1")
-    if (body.quiz.length > 0) {
-      const [quizSet] = await db
-        .insert(quizSets)
-        .values({ documentId: insertedDoc.id, label: "Set 1" })
-        .returning({ id: quizSets.id });
+      // 5. Insert quiz questions (terhubung ke quiz set default "Set 1")
+      if (body.quiz.length > 0) {
+        const [quizSet] = await db
+          .insert(quizSets)
+          .values({ documentId: insertedDoc.id, label: "Set 1" })
+          .returning({ id: quizSets.id });
 
-      await db.insert(quizQuestions).values(
-        body.quiz.map((q) => ({
-          documentId: insertedDoc.id,
-          quizSetId: quizSet.id,
-          question: q.question,
-          options: q.options,
-          correctIndex: q.correct_index,
-        }))
-      );
+        await db.insert(quizQuestions).values(
+          body.quiz.map((q) => ({
+            documentId: insertedDoc.id,
+            quizSetId: quizSet.id,
+            question: q.question,
+            options: q.options,
+            correctIndex: q.correct_index,
+          }))
+        );
+      }
+    } catch (saveError) {
+      // Rollback: hapus dokumen (cascade ke flashcards, quiz_sets, quiz_questions)
+      if (insertedDocId) {
+        await db.delete(documents).where(eq(documents.id, insertedDocId));
+      }
+      throw saveError;
     }
 
     return NextResponse.json(
       {
         success: true,
-        documentId: insertedDoc.id,
-        title: insertedDoc.title,
+        documentId: insertedDocId,
         message: "Data trial berhasil disimpan ke akun Anda.",
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error in POST /api/documents/save-trial:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Terjadi kesalahan internal server.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/documents/save-trial");
   }
 }

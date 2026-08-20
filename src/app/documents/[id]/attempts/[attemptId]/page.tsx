@@ -9,8 +9,10 @@ import {
   XCircle,
   Minus,
   Trophy,
-  AlertCircle,
 } from "lucide-react";
+import ErrorState from "@/components/ErrorState";
+import { useI18n } from "@/lib/i18n";
+import { t as st } from "@/lib/t";
 import { formatDateTime } from "@/lib/format-date";
 
 const OPTION_LABELS = ["A", "B", "C", "D"];
@@ -47,17 +49,18 @@ interface ReviewItem {
 
 function attemptGrade(percentage: number): { label: string; className: string } {
   if (percentage >= 85)
-    return { label: "Sangat Baik", className: "bg-emerald-100 text-emerald-800 border-emerald-200" };
+    return { label: st("attempt.grade.great"), className: "bg-emerald-100 text-emerald-800 border-emerald-200" };
   if (percentage >= 70)
-    return { label: "Baik", className: "bg-blue-100 text-blue-800 border-blue-200" };
+    return { label: st("attempt.grade.good"), className: "bg-blue-100 text-blue-800 border-blue-200" };
   if (percentage >= 50)
-    return { label: "Perlu Berlatih Lagi", className: "bg-amber-100 text-amber-800 border-amber-200" };
-  return { label: "Pelajari Lagi", className: "bg-rose-100 text-rose-800 border-rose-200" };
+    return { label: st("attempt.grade.practice"), className: "bg-amber-100 text-amber-800 border-amber-200" };
+  return { label: st("attempt.grade.study"), className: "bg-rose-100 text-rose-800 border-rose-200" };
 }
 
 export default function AttemptDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const docId = (params?.id as string) || "";
   const attemptId = (params?.attemptId as string) || "";
 
@@ -117,24 +120,21 @@ export default function AttemptDetailPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
-        <p className="text-sm text-neutral-500 font-mono">Memuat detail attempt...</p>
+        <p className="text-sm text-neutral-500 font-mono">{t("attempt.loading")}</p>
       </div>
     );
   }
 
   if (error || !attempt) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center px-6 text-center">
-        <div className="flex items-center gap-2 text-rose-600 bg-rose-50 border border-rose-200 p-4 rounded-xl mb-4">
-          <AlertCircle className="w-5 h-5 shrink-0" />
-          <span className="text-sm">{error || "Attempt tidak ditemukan."}</span>
-        </div>
-        <Link
-          href={`/documents/${docId}/attempts`}
-          className="text-xs text-neutral-700 underline underline-offset-4 hover:text-neutral-900"
-        >
-          Kembali ke Riwayat Ujian
-        </Link>
+      <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center px-6">
+        <ErrorState
+          title={t("attempt.notFoundTitle")}
+          message={error || t("attempt.notFound")}
+          actions={[
+            { label: t("attempt.backToAttempts"), href: `/documents/${docId}/attempts`, variant: "secondary" },
+          ]}
+        />
       </div>
     );
   }
@@ -177,7 +177,7 @@ export default function AttemptDetailPage() {
             <Link
               href={`/documents/${docId}/attempts`}
               className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-              title="Kembali ke Riwayat Ujian"
+              title={t("attempt.backToAttempts")}
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
@@ -186,7 +186,7 @@ export default function AttemptDetailPage() {
                 {documentTitle}
               </h1>
               <p className="text-[11px] text-neutral-500 font-mono">
-                Detail Attempt Ujian
+                {t("attempt.reviewTitle")}
               </p>
             </div>
           </div>
@@ -207,8 +207,8 @@ export default function AttemptDetailPage() {
           </div>
 
           <p className="text-sm text-neutral-600 mb-3">
-            <strong className="text-neutral-900">{attempt.score}</strong> dari{" "}
-            <strong className="text-neutral-900">{attempt.total}</strong> soal benar
+            <strong className="text-neutral-900">{attempt.score}</strong> / 
+            <strong className="text-neutral-900">{attempt.total}</strong>
           </p>
 
           <span
@@ -219,7 +219,7 @@ export default function AttemptDetailPage() {
 
           <p className="text-[11px] text-neutral-400 font-mono mt-4">
             {attempt.quizSetLabel ? `${attempt.quizSetLabel} • ` : ""}
-            Dikerjakan pada {formatDateTime(attempt.createdAt)}
+            {formatDateTime(attempt.createdAt)}
           </p>
 
           {hasReview && (
@@ -228,19 +228,19 @@ export default function AttemptDetailPage() {
                 <div className="text-2xl font-bold text-emerald-700">
                   {correctItems.length}
                 </div>
-                <div className="text-neutral-500 mt-0.5">Benar</div>
+                <div className="text-neutral-500 mt-0.5">{t("attempt.correct")}</div>
               </div>
               <div className="text-center border-x border-neutral-100">
                 <div className="text-2xl font-bold text-rose-600">
                   {wrongItems.length}
                 </div>
-                <div className="text-neutral-500 mt-0.5">Salah</div>
+                <div className="text-neutral-500 mt-0.5">{t("attempt.wrong")}</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-neutral-400">
                   {skippedItems.length}
                 </div>
-                <div className="text-neutral-500 mt-0.5">Dilewati</div>
+                <div className="text-neutral-500 mt-0.5">{t("attempt.skipped")}</div>
               </div>
             </div>
           )}
@@ -251,7 +251,7 @@ export default function AttemptDetailPage() {
           <>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-neutral-900">
-                Pembahasan Jawaban
+                {t("attempt.reviewTitle")}
               </h2>
               <span className="text-xs text-neutral-500 font-mono">
                 {review.length} soal
@@ -333,12 +333,12 @@ export default function AttemptDetailPage() {
                             <span className="leading-relaxed pt-0.5">{opt}</span>
                             {isCorrectOption && (
                               <span className="ml-auto shrink-0 text-[10px] font-semibold text-emerald-700 whitespace-nowrap">
-                                ✓ Jawaban benar
+                                ✓ {t("attempt.correctAnswer")}
                               </span>
                             )}
                             {isUserChoice && !item.isCorrect && (
                               <span className="ml-auto shrink-0 text-[10px] font-semibold text-rose-600 whitespace-nowrap">
-                                ✗ Pilihan Anda
+                                ✗ {t("attempt.yourChoice")}
                               </span>
                             )}
                           </div>
@@ -353,14 +353,13 @@ export default function AttemptDetailPage() {
         ) : (
           <div className="bg-white border border-neutral-200 rounded-2xl p-10 text-center shadow-xs">
             <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center mx-auto mb-3 text-neutral-500">
-              <AlertCircle className="w-5 h-5" />
+              <span className="text-lg">📋</span>
             </div>
             <h3 className="text-sm font-semibold text-neutral-900 mb-1">
-              Detail jawaban tidak tersedia
+              {t("attempt.noDetailTitle")}
             </h3>
             <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-              Attempt ini dibuat sebelum fitur penyimpanan detail jawaban
-              tersedia, jadi hanya skor dan tanggal yang bisa ditampilkan.
+              {t("attempt.noDetailMessage")}
             </p>
           </div>
         )}
@@ -371,7 +370,7 @@ export default function AttemptDetailPage() {
             href={`/documents/${docId}/attempts`}
             className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-600 transition"
           >
-            <ArrowLeft className="w-3 h-3" /> Kembali ke Riwayat Ujian
+            <ArrowLeft className="w-3 h-3" /> {t("attempt.backToAttempts")}
           </Link>
         </div>
       </main>

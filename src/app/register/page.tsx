@@ -4,6 +4,7 @@ import { useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signUp, signIn } from "@/lib/auth-client";
+import { useI18n, type TranslationKey } from "@/lib/i18n";
 import {
   ArrowRight,
   AlertCircle,
@@ -13,7 +14,6 @@ import {
   Info,
 } from "lucide-react";
 
-// ----- Shared validation helpers (mirrors src/lib/auth.ts PASSWORD_RULES) -----
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_RULES = {
   minLength: 8,
@@ -21,25 +21,21 @@ const PASSWORD_RULES = {
   hasNumber: /[0-9]/,
 };
 
-function validateEmail(email: string): string | null {
-  if (!email.trim()) return "Alamat email wajib diisi.";
-  if (!EMAIL_REGEX.test(email.trim()))
-    return "Format email tidak valid. Contoh: nama@domain.com";
+function validateEmail(email: string, t: (key: TranslationKey) => string): string | null {
+  if (!email.trim()) return t("auth.emailRequired");
+  if (!EMAIL_REGEX.test(email.trim())) return t("auth.emailInvalid");
   return null;
 }
 
-function validatePassword(password: string): string | null {
-  if (!password) return "Kata sandi wajib diisi.";
+function validatePassword(password: string, t: (key: TranslationKey, params?: Record<string, string | number>) => string): string | null {
+  if (!password) return t("auth.pwRequired");
   if (password.length < PASSWORD_RULES.minLength)
-    return `Kata sandi minimal ${PASSWORD_RULES.minLength} karakter.`;
-  if (!PASSWORD_RULES.hasLetter.test(password))
-    return "Kata sandi harus mengandung minimal satu huruf.";
-  if (!PASSWORD_RULES.hasNumber.test(password))
-    return "Kata sandi harus mengandung minimal satu angka.";
+    return t("auth.pwMinChars", { min: PASSWORD_RULES.minLength });
+  if (!PASSWORD_RULES.hasLetter.test(password)) return t("auth.pwNeedsLetter");
+  if (!PASSWORD_RULES.hasNumber.test(password)) return t("auth.pwNeedsNumber");
   return null;
 }
 
-// ----- Sub-component: individual password rule row -----
 function PasswordRule({ met, label }: { met: boolean; label: string }) {
   return (
     <span
@@ -62,13 +58,11 @@ function PasswordRule({ met, label }: { met: boolean; label: string }) {
   );
 }
 
-// ----- Main component -----
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useI18n();
 
-  // When the user arrives from "Login dengan Google" with an unregistered
-  // email, the server redirects here with the Google profile prefilled.
   const googleNotice = searchParams.get("google_error");
   const googleEmail = searchParams.get("email") ?? "";
   const googleName = searchParams.get("name") ?? "";
@@ -83,7 +77,6 @@ function RegisterForm() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Live password rule evaluation
   const passwordChecks = useMemo(
     () => ({
       length: password.length >= PASSWORD_RULES.minLength,
@@ -97,8 +90,7 @@ function RegisterForm() {
     passwordChecks.length && passwordChecks.hasLetter && passwordChecks.hasNumber;
   const showPasswordHints = passwordTouched && password.length > 0;
 
-  // Inline field errors (only shown after the field has been touched)
-  const emailError = emailTouched ? validateEmail(email) : null;
+  const emailError = emailTouched ? validateEmail(email, t) : null;
 
   const handleGoogleSignUp = async () => {
     setIsGoogleLoading(true);
@@ -107,17 +99,13 @@ function RegisterForm() {
       await signIn.social({
         provider: "google",
         callbackURL: "/",
-        // Explicitly allow creating a new account with Google from this page.
         requestSignUp: true,
-        // A brand-new account lands here after creation; the server rewrites
-        // it to the callbackURL (the user is already signed in).
         newUserCallbackURL: "/register?google_created=1",
-        // Existing email → the server redirects to /login with the notice.
         errorCallbackURL: "/login",
       });
     } catch (err: unknown) {
       setErrorMessage(
-        err instanceof Error ? err.message : "Gagal menghubungkan ke akun Google."
+        err instanceof Error ? err.message : t("auth.googleFailed")
       );
       setIsGoogleLoading(false);
     }
@@ -128,18 +116,18 @@ function RegisterForm() {
     setErrorMessage(null);
 
     if (!name.trim()) {
-      setErrorMessage("Nama lengkap wajib diisi.");
+      setErrorMessage(t("auth.nameRequired"));
       return;
     }
 
-    const emailErr = validateEmail(email);
+    const emailErr = validateEmail(email, t);
     if (emailErr) {
       setEmailTouched(true);
       setErrorMessage(emailErr);
       return;
     }
 
-    const pwErr = validatePassword(password);
+    const pwErr = validatePassword(password, t);
     if (pwErr) {
       setPasswordTouched(true);
       setErrorMessage(pwErr);
@@ -147,7 +135,7 @@ function RegisterForm() {
     }
 
     if (password !== confirmPassword) {
-      setErrorMessage("Konfirmasi kata sandi tidak cocok.");
+      setErrorMessage(t("auth.confirmPasswordMismatch"));
       return;
     }
 
@@ -162,13 +150,12 @@ function RegisterForm() {
 
       if (res.error) {
         setErrorMessage(
-          res.error.message || "Gagal mendaftarkan akun. Email mungkin sudah digunakan."
+          res.error.message || t("auth.registerError")
         );
         setIsLoading(false);
         return;
       }
 
-      // Migrate trial data if present
       if (typeof window !== "undefined") {
         const rawTrial = localStorage.getItem("quick_trial_data");
         if (rawTrial) {
@@ -189,7 +176,7 @@ function RegisterForm() {
               return;
             }
           } catch (migrateErr) {
-            console.error("Gagal memigrasi data trial:", migrateErr);
+            console.error("Trial migration error:", migrateErr);
           }
         }
       }
@@ -198,7 +185,7 @@ function RegisterForm() {
       router.refresh();
     } catch (err: unknown) {
       setErrorMessage(
-        err instanceof Error ? err.message : "Terjadi kesalahan saat mendaftar."
+        err instanceof Error ? err.message : t("auth.registerError")
       );
       setIsLoading(false);
     }
@@ -206,7 +193,6 @@ function RegisterForm() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
-      {/* Top Header */}
       <header className="border-b border-neutral-200 bg-white/90 backdrop-blur-md sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 group">
@@ -223,30 +209,26 @@ function RegisterForm() {
             className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 transition"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Kembali ke Beranda</span>
+            <span>{t("auth.backToHome")}</span>
           </Link>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-md mx-auto px-6 py-12 flex-1 w-full flex flex-col justify-center">
         <div className="bg-white border border-neutral-200 rounded-2xl p-8 shadow-xs">
           <div className="mb-6 text-center">
             <h1 className="text-2xl font-bold tracking-tight text-neutral-900 mb-1.5">
-              Daftar Akun Quick
+              {t("auth.registerTitle")}
             </h1>
             <p className="text-xs text-neutral-500">
-              Buat akun gratis untuk mulai belajar dengan flashcard &amp; kuis AI.
+              {t("auth.registerSubtitle")}
             </p>
           </div>
 
           {googleNotice === "not_registered" && (
             <div className="mb-6 flex items-start gap-2.5 text-xs text-amber-900 bg-amber-50 border border-amber-200 p-3.5 rounded-xl">
               <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-700" />
-              <span>
-                Akun dengan email ini belum terdaftar, silakan daftar dulu.
-                Data dari Google sudah diisikan otomatis.
-              </span>
+              <span>{t("auth.googleNotRegistered")}</span>
             </div>
           )}
 
@@ -257,7 +239,6 @@ function RegisterForm() {
             </div>
           )}
 
-          {/* Google Sign Up Button */}
           <button
             type="button"
             onClick={handleGoogleSignUp}
@@ -268,25 +249,13 @@ function RegisterForm() {
               <Loader2 className="w-4 h-4 animate-spin text-neutral-600" />
             ) : (
               <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
               </svg>
             )}
-            <span>Daftar dengan Google</span>
+            <span>{t("auth.googleSignUp")}</span>
           </button>
 
           <div className="relative my-6">
@@ -295,19 +264,15 @@ function RegisterForm() {
             </div>
             <div className="relative flex justify-center text-[11px] uppercase">
               <span className="bg-white px-3 text-neutral-400 font-mono">
-                atau dengan email
+                {t("auth.orEmail")}
               </span>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Nama Lengkap */}
             <div>
-              <label
-                htmlFor="name"
-                className="block text-xs font-medium text-neutral-700 mb-1.5"
-              >
-                Nama Lengkap
+              <label htmlFor="name" className="block text-xs font-medium text-neutral-700 mb-1.5">
+                {t("auth.fullNameLabel")}
               </label>
               <input
                 id="name"
@@ -321,13 +286,9 @@ function RegisterForm() {
               />
             </div>
 
-            {/* Email */}
             <div>
-              <label
-                htmlFor="email"
-                className="block text-xs font-medium text-neutral-700 mb-1.5"
-              >
-                Alamat Email
+              <label htmlFor="email" className="block text-xs font-medium text-neutral-700 mb-1.5">
+                {t("auth.emailLabel")}
               </label>
               <input
                 id="email"
@@ -355,13 +316,9 @@ function RegisterForm() {
               )}
             </div>
 
-            {/* Password */}
             <div>
-              <label
-                htmlFor="password"
-                className="block text-xs font-medium text-neutral-700 mb-1.5"
-              >
-                Kata Sandi
+              <label htmlFor="password" className="block text-xs font-medium text-neutral-700 mb-1.5">
+                {t("auth.passwordLabel")}
               </label>
               <input
                 id="password"
@@ -377,7 +334,6 @@ function RegisterForm() {
                 className="w-full px-3.5 py-2.5 rounded-xl border border-neutral-200 bg-neutral-50/50 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition disabled:opacity-50"
               />
 
-              {/* Password strength hints - slide in when typing starts */}
               <div
                 className="overflow-hidden transition-all duration-300"
                 style={{
@@ -387,36 +343,22 @@ function RegisterForm() {
                 }}
               >
                 <div className="flex flex-wrap gap-x-4 gap-y-2 px-0.5">
-                  <PasswordRule
-                    met={passwordChecks.length}
-                    label="Minimal 8 karakter"
-                  />
-                  <PasswordRule
-                    met={passwordChecks.hasLetter}
-                    label="Mengandung huruf"
-                  />
-                  <PasswordRule
-                    met={passwordChecks.hasNumber}
-                    label="Mengandung angka"
-                  />
+                  <PasswordRule met={passwordChecks.length} label={t("auth.pwMinLength")} />
+                  <PasswordRule met={passwordChecks.hasLetter} label={t("auth.pwHasLetter")} />
+                  <PasswordRule met={passwordChecks.hasNumber} label={t("auth.pwHasNumber")} />
                 </div>
               </div>
 
-              {/* Static hint when user hasn't started typing */}
               {!showPasswordHints && !password && (
                 <p className="mt-1.5 text-[11px] text-neutral-400">
-                  Min. 8 karakter, kombinasi huruf &amp; angka.
+                  {t("auth.pwHint")}
                 </p>
               )}
             </div>
 
-            {/* Konfirmasi Password */}
             <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-xs font-medium text-neutral-700 mb-1.5"
-              >
-                Konfirmasi Kata Sandi
+              <label htmlFor="confirmPassword" className="block text-xs font-medium text-neutral-700 mb-1.5">
+                {t("auth.confirmPasswordLabel")}
               </label>
               <input
                 id="confirmPassword"
@@ -435,7 +377,7 @@ function RegisterForm() {
               {confirmPassword && confirmPassword !== password && (
                 <p className="mt-1.5 text-[11px] text-rose-500 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3 shrink-0" />
-                  Konfirmasi kata sandi tidak cocok.
+                  {t("auth.confirmPasswordMismatch")}
                 </p>
               )}
             </div>
@@ -453,11 +395,11 @@ function RegisterForm() {
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Mendaftarkan akun...</span>
+                    <span>{t("auth.registering")}</span>
                   </>
                 ) : (
                   <>
-                    <span>Daftar Akun</span>
+                    <span>{t("auth.registerButton")}</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -466,20 +408,19 @@ function RegisterForm() {
           </form>
 
           <div className="mt-6 pt-6 border-t border-neutral-100 text-center text-xs text-neutral-500">
-            <span>Sudah memiliki akun? </span>
+            <span>{t("auth.hasAccount")}</span>
             <Link
               href="/login"
               className="font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-700 transition"
             >
-              Masuk di sini
+              {t("auth.loginHere")}
             </Link>
           </div>
         </div>
       </main>
 
-      {/* Minimal Footer */}
       <footer className="border-t border-neutral-200 bg-white py-6 text-center text-xs text-neutral-500">
-        Quick — AI Flashcard &amp; Quiz App
+        {t("footer.tagline")}
       </footer>
     </div>
   );

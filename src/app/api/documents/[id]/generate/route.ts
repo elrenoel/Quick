@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, documents, flashcards, quizQuestions, quizSets } from "@/db";
 import { eq, asc } from "drizzle-orm";
+import { handleApiError } from "@/lib/api-error";
 import { generateStudyMaterials } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
@@ -114,14 +115,6 @@ export async function POST(
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error in POST /api/documents/:id/generate:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Gagal melakukan generate materi AI.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/documents/:id/generate", "Gagal melakukan generate materi AI.");
   }
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db, documents, flashcards, quizQuestions, quizSets } from "@/db";
+import { eq } from "drizzle-orm";
+import { handleApiError } from "@/lib/api-error";
 import { extractPdfText } from "@/lib/pdf";
 import { generateStudyMaterials } from "@/lib/ai";
 import { DAILY_LIMIT, getUserQuota, incrementGenerationUsage } from "@/lib/daily-limit";
@@ -151,40 +153,52 @@ export async function POST(request: NextRequest) {
     // 6. Generate dengan AI
     const aiResult = await generateStudyMaterials(text);
 
-    // 7. Simpan ke database
-    const [insertedDoc] = await db
-      .insert(documents)
-      .values({
-        userId: session.user.id,
-        title,
-        rawText: text,
-        sessionId: null,
-      })
-      .returning();
+    // 7. Simpan ke database (atomic: gagal = rollback semua)
+    let insertedDocId: string | null = null;
+    let insertedCreatedAt: string | null = null;
+    try {
+      const [insertedDoc] = await db
+        .insert(documents)
+        .values({
+          userId: session.user.id,
+          title,
+          rawText: text,
+          sessionId: null,
+        })
+        .returning();
+      insertedDocId = insertedDoc.id;
+      insertedCreatedAt = insertedDoc.createdAt;
 
-    await db.insert(flashcards).values(
-      aiResult.flashcards.map((c) => ({
-        documentId: insertedDoc.id,
-        term: c.term,
-        definition: c.definition,
-      }))
-    );
+      await db.insert(flashcards).values(
+        aiResult.flashcards.map((c) => ({
+          documentId: insertedDoc.id,
+          term: c.term,
+          definition: c.definition,
+        }))
+      );
 
-    // Set default "Set 1" untuk quiz
-    const [quizSet] = await db
-      .insert(quizSets)
-      .values({ documentId: insertedDoc.id, label: "Set 1" })
-      .returning({ id: quizSets.id });
+      // Set default "Set 1" untuk quiz
+      const [quizSet] = await db
+        .insert(quizSets)
+        .values({ documentId: insertedDoc.id, label: "Set 1" })
+        .returning({ id: quizSets.id });
 
-    await db.insert(quizQuestions).values(
-      aiResult.quiz.map((q) => ({
-        documentId: insertedDoc.id,
-        quizSetId: quizSet.id,
-        question: q.question,
-        options: q.options,
-        correctIndex: q.correct_index,
-      }))
-    );
+      await db.insert(quizQuestions).values(
+        aiResult.quiz.map((q) => ({
+          documentId: insertedDoc.id,
+          quizSetId: quizSet.id,
+          question: q.question,
+          options: q.options,
+          correctIndex: q.correct_index,
+        }))
+      );
+    } catch (saveError) {
+      // Rollback: hapus dokumen (cascade ke flashcards, quiz_sets, quiz_questions)
+      if (insertedDocId) {
+        await db.delete(documents).where(eq(documents.id, insertedDocId));
+      }
+      throw saveError;
+    }
 
     // 8. Update daily limit counter
     const newCount = await incrementGenerationUsage(
@@ -197,11 +211,11 @@ export async function POST(request: NextRequest) {
       {
         success: true,
         document: {
-          id: insertedDoc.id,
-          title: insertedDoc.title,
+          id: insertedDocId,
+          title,
           totalPages,
           wordCount,
-          createdAt: insertedDoc.createdAt,
+          createdAt: insertedCreatedAt,
         },
         remainingToday: DAILY_LIMIT - newCount,
         totalGeneratedToday: newCount,
@@ -210,15 +224,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error in POST /api/documents/generate:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Terjadi kesalahan internal server.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/documents/generate");
   }
 }
 
@@ -243,7 +249,6 @@ export async function GET(request: NextRequest) {
       dailyLimit: DAILY_LIMIT,
     });
   } catch (error) {
-    console.error("Error in GET /api/documents/generate:", error);
-    return NextResponse.json({ remainingToday: DAILY_LIMIT });
+    return handleApiError(error, "GET /api/documents/generate");
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, quizQuestions, quizAttempts, quizSets, documents } from "@/db";
 import { eq, and } from "drizzle-orm";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -158,14 +159,6 @@ export async function POST(
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error in POST /api/quiz/:documentId/submit:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Terjadi kesalahan internal server.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/quiz/:documentId/submit");
   }
 }

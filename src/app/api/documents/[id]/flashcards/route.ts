@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, flashcards, documents } from "@/db";
 import { eq } from "drizzle-orm";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -53,14 +54,6 @@ export async function GET(
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error in GET /api/documents/:id/flashcards:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Terjadi kesalahan internal server.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "GET /api/documents/:id/flashcards");
   }
 }

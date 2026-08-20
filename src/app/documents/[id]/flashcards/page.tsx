@@ -10,9 +10,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Play,
-  AlertCircle,
   Loader2,
 } from "lucide-react";
+import ErrorState from "@/components/ErrorState";
+import { useI18n } from "@/lib/i18n";
 import { MOCK_DOCUMENT } from "@/lib/mock-data";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -40,6 +41,7 @@ function CardSkeleton() {
 export default function FlashcardsPage() {
   const params = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const docId = (params?.id as string) || "";
 
   const isDemo = docId === "demo-os-memory";
@@ -48,6 +50,28 @@ export default function FlashcardsPage() {
   const [documentTitle, setDocumentTitle] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Retry function: refetch flashcards on error
+  const handleRetry = () => {
+    setIsLoading(true);
+    setError(null);
+    fetch(`/api/documents/${docId}/flashcards`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Gagal memuat flashcard.");
+        return res.json();
+      })
+      .then((data) => {
+        if (!data.flashcards || data.flashcards.length === 0) {
+          throw new Error("Tidak ada flashcard yang ditemukan untuk dokumen ini.");
+        }
+        setCards(data.flashcards);
+        setDocumentTitle(data.documentTitle || "Materi Pembelajaran");
+      })
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : "Gagal memuat flashcard.");
+      })
+      .finally(() => setIsLoading(false));
+  };
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -157,7 +181,7 @@ export default function FlashcardsPage() {
               </h1>
               <p className="text-[11px] text-neutral-500 font-mono">
                 Flashcards
-                {!isLoading && cards.length > 0 && ` • ${cards.length} Konsep`}
+                {!isLoading && cards.length > 0 && ` \u00b7 ${cards.length} ${t("flashcards.konsep")}`}
               </p>
             </div>
           </div>
@@ -166,7 +190,7 @@ export default function FlashcardsPage() {
             href={`/documents/${docId}/quiz`}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 transition active:scale-[0.98] shadow-xs"
           >
-            <span>Mulai Quiz</span>
+            <span>{t("flashcards.startQuiz")}</span>
             <Play className="w-3.5 h-3.5 fill-current" />
           </Link>
         </div>
@@ -187,7 +211,7 @@ export default function FlashcardsPage() {
           <div className="w-full flex flex-col items-center gap-6">
             <div className="flex items-center gap-2 text-sm text-neutral-500">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Memuat flashcard...</span>
+              <span>{t("flashcards.loading")}</span>
             </div>
             <CardSkeleton />
           </div>
@@ -195,18 +219,14 @@ export default function FlashcardsPage() {
 
         {/* Error state */}
         {!isLoading && error && (
-          <div className="w-full max-w-sm text-center">
-            <div className="flex items-center justify-center gap-2 text-rose-600 bg-rose-50 border border-rose-200 p-4 rounded-xl mb-4">
-              <AlertCircle className="w-5 h-5 shrink-0" />
-              <span className="text-sm">{error}</span>
-            </div>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-700 underline underline-offset-4 hover:text-neutral-900 transition"
-            >
-              <ArrowLeft className="w-3 h-3" /> Kembali ke Beranda
-            </Link>
-          </div>
+          <ErrorState
+            title={t("flashcards.notFoundTitle")}
+            message={t("flashcards.notFoundMessage")}
+            actions={[
+              { label: t("error.retry"), onClick: handleRetry, variant: "primary" },
+              { label: t("error.home"), href: "/", variant: "secondary" },
+            ]}
+          />
         )}
 
         {/* Cards */}
@@ -215,11 +235,11 @@ export default function FlashcardsPage() {
             {/* Counter Badge */}
             <div className="flex items-center justify-between w-full mb-6">
               <span className="text-xs font-mono text-neutral-500 bg-white px-3 py-1 rounded-full border border-neutral-200 shadow-2xs">
-                Kartu {currentIndex + 1} dari {cards.length}
+                {t("flashcards.kartu")} {currentIndex + 1} {t("flashcards.of")} {cards.length}
               </span>
 
               <span className="text-xs text-neutral-400 font-mono hidden sm:inline">
-                Tips: [Spasi] flip • [← →] navigasi
+                {t("flashcards.kbTips")}
               </span>
             </div>
 
@@ -236,7 +256,7 @@ export default function FlashcardsPage() {
                 {/* FRONT SIDE (Term) */}
                 <div className="absolute inset-0 bg-white border border-neutral-200 rounded-2xl p-8 flex flex-col justify-between backface-hidden shadow-xs hover:border-neutral-300 transition">
                   <div className="flex items-center justify-between text-xs text-neutral-400">
-                    <span className="font-mono uppercase tracking-wider text-[10px]">Istilah / Konsep</span>
+                    <span className="font-mono uppercase tracking-wider text-[10px]">{t("flashcards.termLabel")}</span>
                     <span className="inline-flex items-center gap-1 text-neutral-500 group-hover:text-neutral-900 transition">
                       <RotateCw className="w-3 h-3" /> Balik kartu
                     </span>
@@ -249,7 +269,7 @@ export default function FlashcardsPage() {
                   </div>
 
                   <div className="text-center text-xs text-neutral-400 font-mono">
-                    Klik kartu untuk melihat definisi
+                    {t("flashcards.clickToReveal")}
                   </div>
                 </div>
 

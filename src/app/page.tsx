@@ -629,9 +629,8 @@ export default function LandingPage() {
 
         {/* Minimal Footer */}
         <footer className="border-t border-neutral-200 bg-white py-6 text-center text-xs text-neutral-500">
-          <div className="max-w-4xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className=" px-6 flex flex-col sm:flex-row items-center justify-center gap-2">
             <span>{t("footer.tagline")}</span>
-            <span className="text-neutral-400">{t("footer.stage")}</span>
           </div>
         </footer>
       </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractPdfText } from "@/lib/pdf";
 import { generateStudyMaterials } from "@/lib/ai";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -170,14 +171,6 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error in POST /api/trial/generate:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Terjadi kesalahan internal server.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/trial/generate");
   }
 }

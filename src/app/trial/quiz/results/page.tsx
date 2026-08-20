@@ -13,6 +13,8 @@ import {
   LogIn,
   UserPlus,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+import { t as st } from "@/lib/t";
 import { formatDateTime } from "@/lib/format-date";
 
 interface ReviewItem {
@@ -38,33 +40,34 @@ function ScoreGrade({ percentage }: { percentage: number }) {
   if (percentage >= 85) {
     return (
       <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-        Sangat Baik 🎉
+        {st("attempt.grade.great")} 🎉
       </span>
     );
   }
   if (percentage >= 70) {
     return (
       <span className="text-xs font-semibold px-3 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-        Baik
+        {st("attempt.grade.good")}
       </span>
     );
   }
   if (percentage >= 50) {
     return (
       <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-        Perlu Berlatih Lagi
+        {st("attempt.grade.practice")}
       </span>
     );
   }
   return (
     <span className="text-xs font-semibold px-3 py-1 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
-      Pelajari Lagi Materi
+      {st("attempt.grade.study")}
     </span>
   );
 }
 
 export default function TrialQuizResultsPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [result, setResult] = useState<QuizResult | null>(null);
 
   useEffect(() => {
@@ -85,7 +88,7 @@ export default function TrialQuizResultsPage() {
   if (!result) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
-        <p className="text-sm text-neutral-500 font-mono">Memuat hasil kuis trial...</p>
+        <p className="text-sm text-neutral-500 font-mono">{t("quiz.loading")}</p>
       </div>
     );
   }
@@ -113,7 +116,7 @@ export default function TrialQuizResultsPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Review Flashcard</span>
+              <span>{t("trial.reviewFlashcard")}</span>
             </Link>
           </div>
         </div>
@@ -123,7 +126,7 @@ export default function TrialQuizResultsPage() {
       <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
           <p className="text-xs text-amber-800 font-medium leading-relaxed">
-            ✨ Ingin menyimpan riwayat kuis dan membuka kuota generate 5x/hari?
+            {t("trial.promoTitle")}
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <Link
@@ -131,14 +134,14 @@ export default function TrialQuizResultsPage() {
               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-amber-300 text-amber-800 hover:bg-amber-100 transition"
             >
               <LogIn className="w-3.5 h-3.5" />
-              <span>Masuk</span>
+              <span>{t("trial.login")}</span>
             </Link>
             <Link
               href="/register"
               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-700 text-white hover:bg-amber-800 transition"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span>Daftar Gratis</span>
+              <span>{t("trial.register")}</span>
             </Link>
           </div>
         </div>
@@ -153,7 +156,7 @@ export default function TrialQuizResultsPage() {
           </div>
 
           <p className="text-xs font-mono text-neutral-500 uppercase tracking-wider mb-1">
-            Hasil Kuis Trial • {result.documentTitle}
+            {t("trial.scoreTitle")} 00b7 {result.documentTitle}
           </p>
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-neutral-900 mb-3">
             Skor: {result.score} / {result.total}
@@ -168,7 +171,7 @@ export default function TrialQuizResultsPage() {
 
           {result.createdAt && (
             <p className="text-[11px] text-neutral-400 font-mono mb-6">
-              Dikerjakan pada {formatDateTime(result.createdAt)}
+              {formatDateTime(result.createdAt)}
             </p>
           )}
 
@@ -178,13 +181,13 @@ export default function TrialQuizResultsPage() {
               <span className="text-lg font-bold text-emerald-800 font-mono">
                 {correctItems.length}
               </span>
-              <p className="text-[11px] text-emerald-700 font-medium">Jawaban Benar</p>
+              <p className="text-[11px] text-emerald-700 font-medium">{t("trial.correctAnswers")}</p>
             </div>
             <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-xl text-center">
               <span className="text-lg font-bold text-rose-800 font-mono">
                 {wrongItems.length}
               </span>
-              <p className="text-[11px] text-rose-700 font-medium">Jawaban Salah</p>
+              <p className="text-[11px] text-rose-700 font-medium">{t("trial.wrongAnswers")}</p>
             </div>
           </div>
 
@@ -195,14 +198,14 @@ export default function TrialQuizResultsPage() {
               className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-xs font-medium text-neutral-800 transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Ulangi Kuis</span>
+              <span>{t("trial.repeatQuiz")}</span>
             </button>
             <Link
               href="/trial/flashcards"
               className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-xs font-medium text-white transition flex items-center justify-center gap-1.5 shadow-2xs"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Buka Flashcards</span>
+              <span>{t("trial.openFlashcards")}</span>
             </Link>
           </div>
         </div>
@@ -210,7 +213,7 @@ export default function TrialQuizResultsPage() {
         {/* Detailed Question Review List */}
         <div className="space-y-4">
           <h2 className="text-sm font-semibold text-neutral-900 tracking-tight">
-            Review Pembahasan Soal ({result.review.length})
+            {t("trial.reviewTitle")} ({result.review.length})
           </h2>
 
           {result.review.map((item, idx) => (

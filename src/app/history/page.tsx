@@ -11,7 +11,6 @@ import {
   ArrowRight,
   Plus,
   Loader2,
-  AlertCircle,
   Pencil,
   Check,
   X,
@@ -20,6 +19,8 @@ import {
   LogOut,
   FolderOpen,
 } from "lucide-react";
+import ErrorState from "@/components/ErrorState";
+import { useI18n } from "@/lib/i18n";
 
 interface UserDocument {
   id: string;
@@ -30,6 +31,7 @@ interface UserDocument {
 
 export default function HistoryPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const { data: session, isPending: isSessionPending } = useSession();
 
   const [documentsList, setDocumentsList] = useState<UserDocument[]>([]);
@@ -58,13 +60,13 @@ export default function HistoryPage() {
         const res = await fetch("/api/documents");
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "Gagal memuat histori dokumen.");
+          throw new Error(err.error || t("history.loadErrorTitle"));
         }
         const data = await res.json();
         setDocumentsList(data.documents || []);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Terjadi kesalahan saat memuat histori."
+          err instanceof Error ? err.message : t("history.loadErrorMessage")
         );
       } finally {
         setIsLoading(false);
@@ -106,7 +108,7 @@ export default function HistoryPage() {
 
     const newTitle = editingTitle.trim();
     if (!newTitle) {
-      setRenameError("Nama dokumen tidak boleh kosong.");
+      setRenameError(t("history.renamePlaceholder") + " " + t("error.defaultMessage").split(".")[0]);
       return;
     }
 
@@ -126,7 +128,7 @@ export default function HistoryPage() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "Gagal menyimpan nama dokumen.");
+        throw new Error(body.error || t("history.renameError"));
       }
       const data = await res.json();
       setDocumentsList((prev) =>
@@ -139,7 +141,7 @@ export default function HistoryPage() {
       cancelRename();
     } catch (err) {
       setRenameError(
-        err instanceof Error ? err.message : "Gagal menyimpan nama dokumen."
+        err instanceof Error ? err.message : t("history.renameError")
       );
     } finally {
       setIsRenaming(false);
@@ -165,14 +167,14 @@ export default function HistoryPage() {
               href="/"
               className="px-3 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 transition"
             >
-              Beranda
+              {t("error.home")}
             </Link>
 
             <Link
               href="/history"
               className="px-3 py-1.5 text-xs font-medium text-neutral-900 font-semibold transition"
             >
-              Riwayat
+              {t("nav.history")}
             </Link>
 
             {!isSessionPending && (
@@ -188,11 +190,11 @@ export default function HistoryPage() {
                     <button
                       onClick={handleLogout}
                       disabled={isLoggingOut}
-                      title="Keluar dari akun"
+                      title={t("nav.logoutTitle")}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition disabled:opacity-50 cursor-pointer"
                     >
                       <LogOut className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Keluar</span>
+                      <span className="hidden sm:inline">{t("nav.logout")}</span>
                     </button>
                   </div>
                 ) : (
@@ -201,13 +203,13 @@ export default function HistoryPage() {
                       href="/login"
                       className="px-3 py-1.5 text-xs font-medium text-neutral-700 hover:text-neutral-900 transition"
                     >
-                      Masuk
+                      {t("nav.login")}
                     </Link>
                     <Link
                       href="/register"
                       className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 transition shadow-2xs"
                     >
-                      Daftar
+                      {t("nav.register")}
                     </Link>
                   </div>
                 )}
@@ -223,10 +225,10 @@ export default function HistoryPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-900 mb-1">
-              Riwayat Dokumen
+              {t("history.pageTitle")}
             </h1>
             <p className="text-xs sm:text-sm text-neutral-500">
-              Daftar seluruh materi kuliah yang pernah Anda proses menjadi flashcard &amp; kuis.
+              {t("history.pageDesc")}
             </p>
           </div>
 
@@ -235,7 +237,7 @@ export default function HistoryPage() {
             className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 transition shadow-xs self-start sm:self-auto"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Upload PDF Baru</span>
+            <span>{t("history.uploadNew")}</span>
           </Link>
         </div>
 
@@ -246,16 +248,16 @@ export default function HistoryPage() {
               <UserIcon className="w-6 h-6" />
             </div>
             <h2 className="text-base font-semibold text-neutral-900 mb-1.5">
-              Masuk untuk melihat riwayat
+              {t("history.loginTitle")}
             </h2>
             <p className="text-xs text-neutral-500 max-w-sm mx-auto mb-6">
-              Silakan login terlebih dahulu untuk mengakses seluruh dokumen dan materi belajar yang telah Anda simpan.
+              {t("history.loginDesc")}
             </p>
             <Link
               href="/login"
               className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-800 transition shadow-2xs"
             >
-              <span>Masuk Sekarang</span>
+              <span>{t("history.loginButton")}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -281,9 +283,32 @@ export default function HistoryPage() {
 
         {/* State 3: Error Message */}
         {error && (
-          <div className="flex items-start gap-2.5 text-xs text-rose-600 bg-rose-50 border border-rose-200 p-4 rounded-xl mb-6">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
+          <div className="mb-6">
+            <ErrorState
+              title="Gagal memuat riwayat"
+              message="Tidak bisa mengambil data dokumen. Periksa koneksi internet Anda."
+              compact
+              actions={[
+                {
+                  label: "Coba Lagi",
+                  onClick: () => {
+                    setIsLoading(true);
+                    setError(null);
+                    fetch("/api/documents")
+                      .then((res) => {
+                        if (!res.ok) throw new Error("Gagal memuat histori.");
+                        return res.json();
+                      })
+                      .then((data) => setDocumentsList(data.documents || []))
+                      .catch((err: unknown) => {
+                        setError(err instanceof Error ? err.message : "Gagal memuat.");
+                      })
+                      .finally(() => setIsLoading(false));
+                  },
+                  variant: "primary",
+                },
+              ]}
+            />
           </div>
         )}
 
@@ -324,7 +349,7 @@ export default function HistoryPage() {
                             <button
                               type="submit"
                               disabled={isRenaming || !editingTitle.trim()}
-                              title="Simpan"
+                              title={t("history.renameSave")}
                               className="shrink-0 w-7 h-7 rounded-lg bg-emerald-700 text-white flex items-center justify-center hover:bg-emerald-800 disabled:opacity-50 transition cursor-pointer"
                             >
                               {isRenaming ? (
@@ -341,7 +366,7 @@ export default function HistoryPage() {
                                 cancelRename();
                               }}
                               disabled={isRenaming}
-                              title="Batal"
+                              title={t("history.renameCancel")}
                               className="shrink-0 w-7 h-7 rounded-lg bg-neutral-100 text-neutral-600 flex items-center justify-center hover:bg-neutral-200 disabled:opacity-50 transition cursor-pointer"
                             >
                               <X className="w-3.5 h-3.5" />
@@ -358,7 +383,7 @@ export default function HistoryPage() {
                                 e.stopPropagation();
                                 startRename(doc);
                               }}
-                              title="Ubah nama dokumen"
+                              title={t("history.renamePlaceholder")}
                               className="shrink-0 w-6 h-6 rounded-md text-neutral-300 hover:text-neutral-900 hover:bg-neutral-100 flex items-center justify-center transition cursor-pointer"
                             >
                               <Pencil className="w-3 h-3" />
@@ -367,8 +392,7 @@ export default function HistoryPage() {
                         )}
 
                         {renameError && editingId === doc.id && (
-                          <p className="mt-1 flex items-center gap-1 text-[11px] text-rose-500">
-                            <AlertCircle className="w-3 h-3 shrink-0" />
+                          <p className="mt-1 flex items-center gap-1 text-[11px] text-neutral-600 bg-neutral-50 border border-neutral-200 px-2 py-1 rounded-md">
                             <span>{renameError}</span>
                           </p>
                         )}
@@ -382,10 +406,10 @@ export default function HistoryPage() {
                           {doc.lastAttempt ? (
                             <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
                               <ClipboardCheck className="w-3 h-3" />
-                              Skor terakhir: {doc.lastAttempt.score}/{doc.lastAttempt.total}
+                              {t("history.lastScore", { score: doc.lastAttempt.score, total: doc.lastAttempt.total })}
                             </span>
                           ) : (
-                            <span className="text-neutral-400">Belum ada ujian</span>
+                            <span className="text-neutral-400">{t("history.noExam")}</span>
                           )}
                           <button
                             onClick={(e) => {
@@ -395,7 +419,7 @@ export default function HistoryPage() {
                             }}
                             className="inline-flex items-center gap-0.5 text-neutral-500 underline underline-offset-2 hover:text-neutral-900 transition cursor-pointer"
                           >
-                            Riwayat ujian
+                            {t("history.examHistory")}
                           </button>
                         </div>
                       </div>
@@ -414,17 +438,17 @@ export default function HistoryPage() {
                   <FolderOpen className="w-6 h-6" />
                 </div>
                 <h2 className="text-base font-semibold text-neutral-900 mb-1">
-                  Belum ada dokumen, yuk upload PDF pertamamu
+                  {t("history.emptyTitle")}
                 </h2>
                 <p className="text-xs text-neutral-500 max-w-sm mx-auto mb-6">
-                  Materi yang Anda unggah akan tersimpan di sini sehingga Anda bisa mempelajari ulang flashcard dan kuis kapan saja.
+                  {t("history.emptyDesc")}
                 </p>
                 <Link
                   href="/"
                   className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-neutral-900 text-white text-xs font-medium hover:bg-neutral-800 transition shadow-2xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Upload PDF Pertama</span>
+                  <span>{t("history.emptyButton")}</span>
                 </Link>
               </div>
             )}
@@ -434,7 +458,7 @@ export default function HistoryPage() {
 
       {/* Minimal Footer */}
       <footer className="border-t border-neutral-200 bg-white py-6 text-center text-xs text-neutral-500">
-        Quick — AI Flashcard &amp; Quiz App
+        {t("footer.tagline")}
       </footer>
     </div>
   );

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db, documents, quizAttempts } from "@/db";
 import { eq, desc, inArray } from "drizzle-orm";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -72,14 +73,6 @@ export async function GET(request: NextRequest) {
       documents: documentsWithLastAttempt,
     });
   } catch (error) {
-    console.error("Error in GET /api/documents:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Terjadi kesalahan internal server.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "GET /api/documents");
   }
 }

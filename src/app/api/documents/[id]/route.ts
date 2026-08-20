@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db, documents } from "@/db";
 import { eq, and } from "drizzle-orm";
+import { handleApiError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -88,14 +89,6 @@ export async function PATCH(
       message: "Nama dokumen berhasil diubah.",
     });
   } catch (error) {
-    console.error("Error in PATCH /api/documents/:id:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Terjadi kesalahan internal server.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "PATCH /api/documents/:id");
   }
 }

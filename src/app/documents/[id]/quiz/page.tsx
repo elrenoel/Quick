@@ -8,10 +8,11 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  AlertCircle,
   Loader2,
   Sparkles,
 } from "lucide-react";
+import ErrorState from "@/components/ErrorState";
+import { useI18n } from "@/lib/i18n";
 import { getOrCreateSessionId } from "@/lib/session";
 import SubmitConfirmDialog from "@/components/SubmitConfirmDialog";
 
@@ -47,6 +48,7 @@ function QuestionSkeleton() {
 export default function QuizPage() {
   const params = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const docId = (params?.id as string) || "";
 
   const isDemo = docId === "demo-os-memory";
@@ -284,7 +286,7 @@ export default function QuizPage() {
             <Link
               href={`/documents/${docId}/flashcards`}
               className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-              title="Kembali ke Flashcards"
+              title={t("trial.backToFlashcard")}
             >
               <ChevronLeft className="w-4 h-4" />
             </Link>
@@ -305,8 +307,7 @@ export default function QuizPage() {
           </div>
 
           {!isLoading && questions.length > 0 && (
-            <div className="flex items-center gap-2 text-xs font-mono text-neutral-600 bg-neutral-100 px-3 py-1.5 rounded-lg border border-neutral-200">
-              <span>Terjawab:</span>
+            <div className="flex items-center gap-2 text-xs font-mono text-neutral-600 bg-neutral-100 px-3 py-1.5 rounded-lg border border-neutral-200">                <span>{t("quiz.answered")}</span>
               <span className="font-bold text-neutral-900">
                 {answeredCount} / {questions.length}
               </span>
@@ -330,7 +331,7 @@ export default function QuizPage() {
           <div className="w-full flex flex-col gap-4">
             <div className="flex items-center gap-2 text-sm text-neutral-500 mb-2">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Memuat soal kuis...</span>
+              <span>{t("quiz.loading")}</span>
             </div>
             <QuestionSkeleton />
           </div>
@@ -338,18 +339,14 @@ export default function QuizPage() {
 
         {/* Error (fetch) state */}
         {!isLoading && error && (
-          <div className="w-full max-w-sm mx-auto text-center">
-            <div className="flex items-center justify-center gap-2 text-rose-600 bg-rose-50 border border-rose-200 p-4 rounded-xl mb-4">
-              <AlertCircle className="w-5 h-5 shrink-0" />
-              <span className="text-sm">{error}</span>
-            </div>
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-700 underline underline-offset-4 hover:text-neutral-900 transition"
-            >
-              Kembali ke Beranda
-            </Link>
-          </div>
+          <ErrorState
+            title={t("quiz.notFoundTitle")}
+            message={t("quiz.notFoundMessage")}
+            actions={[
+              { label: t("error.retry"), onClick: () => { setIsLoading(true); setError(null); loadQuiz(); }, variant: "primary" },
+              { label: t("error.home"), href: "/", variant: "secondary" },
+            ]}
+          />
         )}
 
         {/* Quiz Set Selector & Regenerate */}
@@ -382,14 +379,19 @@ export default function QuizPage() {
                 ) : (
                   <Sparkles className="w-3.5 h-3.5" />
                 )}
-                <span>{isRegenerating ? "Membuat Soal..." : "Buat Soal Baru"}</span>
+                <span>{isRegenerating ? t("quiz.creatingSet") : t("quiz.newSet")}</span>
               </button>
             </div>
 
             {regenerateError && (
-              <div className="flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3 rounded-lg">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{regenerateError}</span>
+              <div className="bg-neutral-50 border border-neutral-200 p-3 rounded-lg">
+                <p className="text-xs text-neutral-700 font-medium">{regenerateError}</p>
+                <button
+                  onClick={handleRegenerate}
+                  className="mt-2 text-xs text-neutral-900 font-medium underline underline-offset-2 hover:text-neutral-600 transition cursor-pointer"
+                >
+                  Coba lagi
+                </button>
               </div>
             )}
 
@@ -454,9 +456,8 @@ export default function QuizPage() {
 
             {/* Submit error */}
             {submitError && (
-              <div className="flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3 rounded-lg mb-4">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{submitError}</span>
+              <div className="bg-neutral-50 border border-neutral-200 p-3 rounded-lg mb-4">
+                <p className="text-xs text-neutral-700 font-medium">{submitError}</p>
               </div>
             )}
 

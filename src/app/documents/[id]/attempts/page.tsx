@@ -7,8 +7,10 @@ import {
   ArrowLeft,
   ClipboardList,
   ChevronRight,
-  AlertCircle,
 } from "lucide-react";
+import ErrorState from "@/components/ErrorState";
+import { useI18n } from "@/lib/i18n";
+import { t as st } from "@/lib/t";
 import { formatDateTime } from "@/lib/format-date";
 
 interface QuizAttempt {
@@ -27,17 +29,18 @@ interface QuizAttempt {
 
 function attemptGrade(percentage: number): { label: string; className: string } {
   if (percentage >= 85)
-    return { label: "Sangat Baik", className: "bg-emerald-100 text-emerald-800 border-emerald-200" };
+    return { label: st("attempt.grade.great"), className: "bg-emerald-100 text-emerald-800 border-emerald-200" };
   if (percentage >= 70)
-    return { label: "Baik", className: "bg-blue-100 text-blue-800 border-blue-200" };
+    return { label: st("attempt.grade.good"), className: "bg-blue-100 text-blue-800 border-blue-200" };
   if (percentage >= 50)
-    return { label: "Perlu Berlatih Lagi", className: "bg-amber-100 text-amber-800 border-amber-200" };
-  return { label: "Pelajari Lagi", className: "bg-rose-100 text-rose-800 border-rose-200" };
+    return { label: st("attempt.grade.practice"), className: "bg-amber-100 text-amber-800 border-amber-200" };
+  return { label: st("attempt.grade.study"), className: "bg-rose-100 text-rose-800 border-rose-200" };
 }
 
 export default function DocumentAttemptsPage() {
   const params = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const docId = (params?.id as string) || "";
 
   const [documentTitle, setDocumentTitle] = useState("");
@@ -136,9 +139,35 @@ export default function DocumentAttemptsPage() {
 
         {/* Error */}
         {!isLoading && error && (
-          <div className="flex items-start gap-2.5 text-xs text-rose-600 bg-rose-50 border border-rose-200 p-4 rounded-xl mb-6">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
+          <div className="mb-6">
+            <ErrorState
+              title="Gagal memuat riwayat"
+              message="Tidak bisa mengambil data riwayat ujian. Periksa koneksi internet Anda."
+              compact
+              actions={[
+                {
+                  label: "Coba Lagi",
+                  onClick: () => {
+                    setIsLoading(true);
+                    setError(null);
+                    fetch(`/api/documents/${docId}/attempts`)
+                      .then((res) => {
+                        if (!res.ok) throw new Error("Server error");
+                        return res.json();
+                      })
+                      .then((data) => {
+                        setDocumentTitle(data.document?.title || "Dokumen");
+                        setAttempts(data.attempts || []);
+                      })
+                      .catch((err: unknown) => {
+                        setError(err instanceof Error ? err.message : "Gagal memuat.");
+                      })
+                      .finally(() => setIsLoading(false));
+                  },
+                  variant: "primary",
+                },
+              ]}
+            />
           </div>
         )}
 

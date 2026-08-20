@@ -9,10 +9,11 @@ import {
   RotateCw,
   Play,
   ArrowRight,
-  AlertCircle,
   LogIn,
   UserPlus,
 } from "lucide-react";
+import ErrorState from "@/components/ErrorState";
+import { useI18n } from "@/lib/i18n";
 
 interface Flashcard {
   term: string;
@@ -28,6 +29,7 @@ interface TrialData {
 
 export default function TrialFlashcardsPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [trialData, setTrialData] = useState<TrialData | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -86,14 +88,14 @@ export default function TrialFlashcardsPage() {
 
   if (notFound) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center px-6 text-center">
-        <div className="flex items-center gap-2 text-rose-600 bg-rose-50 border border-rose-200 p-4 rounded-xl mb-4">
-          <AlertCircle className="w-5 h-5 shrink-0" />
-          <span className="text-sm">Data trial tidak ditemukan atau sudah kadaluarsa.</span>
-        </div>
-        <Link href="/" className="text-xs text-neutral-700 underline underline-offset-4 hover:text-neutral-900">
-          Kembali ke Beranda
-        </Link>
+      <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center px-6">
+        <ErrorState
+          title={t("trial.notFoundTitle")}
+          message={t("trial.notFoundMessage")}
+          actions={[
+            { label: t("trial.uploadNew"), href: "/", variant: "primary" },
+          ]}
+        />
       </div>
     );
   }
@@ -113,7 +115,7 @@ export default function TrialFlashcardsPage() {
             <Link
               href="/"
               className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-              title="Kembali ke Beranda"
+              title={t("error.backToHome")}
             >
               <ChevronLeft className="w-4 h-4" />
             </Link>
@@ -122,7 +124,7 @@ export default function TrialFlashcardsPage() {
                 {trialData.title}
               </h1>
               <p className="text-[11px] text-neutral-500 font-mono">
-                Flashcards Trial • {cards.length} Konsep
+                {t("trial.flashcardsTitle")} 00b7 {cards.length} {t("trial.konsep")}
               </p>
             </div>
           </div>
@@ -131,7 +133,7 @@ export default function TrialFlashcardsPage() {
             onClick={() => router.push("/trial/quiz")}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 transition active:scale-[0.98] shadow-xs"
           >
-            <span>Mulai Quiz</span>
+            <span>{t("flashcards.startQuiz")}</span>
             <Play className="w-3.5 h-3.5 fill-current" />
           </button>
         </div>
@@ -149,7 +151,7 @@ export default function TrialFlashcardsPage() {
       <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
           <p className="text-xs text-amber-800 font-medium leading-relaxed">
-            ✨ Ini adalah hasil <strong>trial gratis</strong> Anda — belum tersimpan. Daftar atau login untuk menyimpan dan generate materi lebih banyak.
+            {t("trial.trialBanner")}
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <Link
@@ -157,14 +159,14 @@ export default function TrialFlashcardsPage() {
               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-amber-300 text-amber-800 hover:bg-amber-100 transition"
             >
               <LogIn className="w-3.5 h-3.5" />
-              <span>Masuk</span>
+              <span>{t("trial.login")}</span>
             </Link>
             <Link
               href="/register"
               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-700 text-white hover:bg-amber-800 transition"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span>Daftar Gratis</span>
+              <span>{t("trial.register")}</span>
             </Link>
           </div>
         </div>
@@ -175,10 +177,10 @@ export default function TrialFlashcardsPage() {
         {/* Counter */}
         <div className="flex items-center justify-between w-full mb-6">
           <span className="text-xs font-mono text-neutral-500 bg-white px-3 py-1 rounded-full border border-neutral-200 shadow-2xs">
-            Kartu {currentIndex + 1} dari {cards.length}
+            {t("trial.kartu")} {currentIndex + 1} {t("trial.of")} {cards.length}
           </span>
           <span className="text-xs text-neutral-400 font-mono hidden sm:inline">
-            Tips: [Spasi] flip • [← →] navigasi
+            {t("trial.kbTips")}
           </span>
         </div>
 
@@ -195,9 +197,9 @@ export default function TrialFlashcardsPage() {
             {/* Front */}
             <div className="absolute inset-0 bg-white border border-neutral-200 rounded-2xl p-8 flex flex-col justify-between backface-hidden shadow-xs hover:border-neutral-300 transition">
               <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span className="font-mono uppercase tracking-wider text-[10px]">Istilah / Konsep</span>
+                <span className="font-mono uppercase tracking-wider text-[10px]">{t("trial.termLabel")}</span>
                 <span className="inline-flex items-center gap-1 text-neutral-500 group-hover:text-neutral-900 transition">
-                  <RotateCw className="w-3 h-3" /> Balik kartu
+                  <RotateCw className="w-3 h-3" /> {t("trial.flipCard")}
                 </span>
               </div>
               <div className="text-center py-6">
@@ -206,16 +208,16 @@ export default function TrialFlashcardsPage() {
                 </h2>
               </div>
               <div className="text-center text-xs text-neutral-400 font-mono">
-                Klik kartu untuk melihat definisi
+                {t("trial.clickToReveal")}
               </div>
             </div>
 
             {/* Back */}
             <div className="absolute inset-0 bg-neutral-900 text-white border border-neutral-900 rounded-2xl p-8 flex flex-col justify-between backface-hidden rotate-y-180 shadow-md">
               <div className="flex items-center justify-between text-xs text-neutral-400">
-                <span className="font-mono uppercase tracking-wider text-[10px] text-neutral-300">Definisi</span>
+                <span className="font-mono uppercase tracking-wider text-[10px] text-neutral-300">{t("trial.definitionLabel")}</span>
                 <span className="inline-flex items-center gap-1 text-neutral-400">
-                  <RotateCw className="w-3 h-3" /> Balik ke istilah
+                  <RotateCw className="w-3 h-3" /> {t("trial.flipToTerm")}
                 </span>
               </div>
               <div className="text-center py-4 px-2">
@@ -236,7 +238,7 @@ export default function TrialFlashcardsPage() {
             className="flex-1 py-3 px-4 rounded-xl bg-white border border-neutral-200 text-xs sm:text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:pointer-events-none transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span>Sebelumnya</span>
+            <span>{t("trial.previous")}</span>
           </button>
 
           <button
@@ -244,7 +246,7 @@ export default function TrialFlashcardsPage() {
             className="py-3 px-4 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-xs sm:text-sm font-medium text-neutral-800 transition flex items-center justify-center gap-2 cursor-pointer"
           >
             <RotateCw className="w-4 h-4" />
-            <span className="hidden sm:inline">Balik Kartu</span>
+            <span className="hidden sm:inline">{t("trial.flipButton")}</span>
           </button>
 
           <button
@@ -252,7 +254,7 @@ export default function TrialFlashcardsPage() {
             disabled={currentIndex === cards.length - 1}
             className="flex-1 py-3 px-4 rounded-xl bg-neutral-900 text-white text-xs sm:text-sm font-medium hover:bg-neutral-800 disabled:opacity-40 disabled:pointer-events-none transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
           >
-            <span>Berikutnya</span>
+            <span>{t("trial.next")}</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -261,13 +263,13 @@ export default function TrialFlashcardsPage() {
         {currentIndex === cards.length - 1 && (
           <div className="mt-8 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center w-full">
             <p className="text-xs text-emerald-800 font-medium mb-2">
-              🎉 Anda sudah menyelesaikan semua flashcard!
+              🎉 {t("trial.endMessage")}
             </p>
             <button
               onClick={() => router.push("/trial/quiz")}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 transition"
             >
-              <span>Uji Pemahaman: Mulai Quiz</span>
+              <span>{t("trial.startQuizButton")}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -275,7 +277,7 @@ export default function TrialFlashcardsPage() {
       </main>
 
       <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
-        Quick — Mode Trial (Data tersimpan lokal, belum di cloud)
+        {t("footer.tagline")}
       </footer>
     </div>
   );

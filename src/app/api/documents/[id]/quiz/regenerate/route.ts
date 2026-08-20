@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db, documents, quizQuestions, quizSets } from "@/db";
 import { eq, and } from "drizzle-orm";
+import { handleApiError } from "@/lib/api-error";
 import { generateQuizQuestions } from "@/lib/ai";
 import {
   DAILY_LIMIT,
@@ -112,21 +113,33 @@ export async function POST(
     // Panggil AI — khusus quiz saja
     const aiResult = await generateQuizQuestions(doc.rawText);
 
-    // Simpan set + soal baru
-    const [quizSet] = await db
-      .insert(quizSets)
-      .values({ documentId: id, label })
-      .returning({ id: quizSets.id, label: quizSets.label });
+    // Simpan set + soal baru (atomic: gagal = rollback)
+    let newQuizSetId: string | null = null;
+    let newQuizSetLabel: string | null = null;
+    try {
+      const [quizSet] = await db
+        .insert(quizSets)
+        .values({ documentId: id, label })
+        .returning({ id: quizSets.id, label: quizSets.label });
+      newQuizSetId = quizSet.id;
+      newQuizSetLabel = quizSet.label;
 
-    await db.insert(quizQuestions).values(
-      aiResult.quiz.map((q) => ({
-        documentId: id,
-        quizSetId: quizSet.id,
-        question: q.question,
-        options: q.options,
-        correctIndex: q.correct_index,
-      }))
-    );
+      await db.insert(quizQuestions).values(
+        aiResult.quiz.map((q) => ({
+          documentId: id,
+          quizSetId: quizSet.id,
+          question: q.question,
+          options: q.options,
+          correctIndex: q.correct_index,
+        }))
+      );
+    } catch (saveError) {
+      // Rollback: hapus quiz set yang baru dibuat
+      if (newQuizSetId) {
+        await db.delete(quizSets).where(eq(quizSets.id, newQuizSetId));
+      }
+      throw saveError;
+    }
 
     // Ikut memakan kuota harian
     const newCount = await incrementGenerationUsage(
@@ -139,24 +152,16 @@ export async function POST(
       {
         success: true,
         quizSet: {
-          id: quizSet.id,
-          label: quizSet.label,
+          id: newQuizSetId,
+          label: newQuizSetLabel,
           questionCount: aiResult.quiz.length,
         },
         remainingToday: Math.max(0, DAILY_LIMIT - newCount),
-        message: `Soal baru berhasil dibuat (${quizSet.label}).`,
+        message: `Soal baru berhasil dibuat (${newQuizSetLabel}).`,
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("Error in POST /api/documents/:id/quiz/regenerate:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Terjadi kesalahan internal server.",
-      },
-      { status: 500 }
-    );
+    return handleApiError(error, "POST /api/documents/:id/quiz/regenerate");
   }
 }

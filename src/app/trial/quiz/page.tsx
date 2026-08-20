@@ -7,10 +7,11 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  AlertCircle,
   LogIn,
   UserPlus,
 } from "lucide-react";
+import ErrorState from "@/components/ErrorState";
+import { useI18n } from "@/lib/i18n";
 import SubmitConfirmDialog from "@/components/SubmitConfirmDialog";
 
 interface QuizQuestion {
@@ -28,6 +29,7 @@ interface TrialData {
 
 export default function TrialQuizPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [trialData, setTrialData] = useState<TrialData | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
@@ -56,17 +58,14 @@ export default function TrialQuizPage() {
 
   if (notFound) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center px-6 text-center">
-        <div className="flex items-center gap-2 text-rose-600 bg-rose-50 border border-rose-200 p-4 rounded-xl mb-4">
-          <AlertCircle className="w-5 h-5 shrink-0" />
-          <span className="text-sm">Data kuis trial tidak ditemukan.</span>
-        </div>
-        <Link
-          href="/"
-          className="text-xs text-neutral-700 underline underline-offset-4 hover:text-neutral-900"
-        >
-          Kembali ke Beranda
-        </Link>
+      <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center px-6">
+        <ErrorState
+          title={t("trial.notFoundTitle")}
+          message={t("trial.notFoundMessage")}
+          actions={[
+            { label: t("trial.uploadNew"), href: "/", variant: "primary" },
+          ]}
+        />
       </div>
     );
   }
@@ -124,7 +123,7 @@ export default function TrialQuizPage() {
             <Link
               href="/trial/flashcards"
               className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-              title="Kembali ke Flashcard"
+              title={t("trial.backToFlashcard")}
             >
               <ChevronLeft className="w-4 h-4" />
             </Link>
@@ -133,14 +132,14 @@ export default function TrialQuizPage() {
                 {trialData.title}
               </h1>
               <p className="text-[11px] text-neutral-500 font-mono">
-                Kuis Trial • {questions.length} Soal
+                {t("trial.quizTitle")} 00b7 {questions.length}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono text-neutral-500 bg-neutral-100 px-3 py-1 rounded-full border border-neutral-200">
-              {answeredCount}/{questions.length} Terjawab
+              {answeredCount}/{questions.length}
             </span>
           </div>
         </div>
@@ -158,7 +157,7 @@ export default function TrialQuizPage() {
       <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-2 justify-between">
           <p className="text-xs text-amber-800 font-medium leading-relaxed">
-            ✨ Mode Trial: Jawaban kuis diproses secara lokal.
+            {t("trial.quizBanner")}
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <Link
@@ -166,14 +165,14 @@ export default function TrialQuizPage() {
               className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-white border border-amber-300 text-amber-800 hover:bg-amber-100 transition"
             >
               <LogIn className="w-3 h-3" />
-              <span>Masuk</span>
+              <span>{t("trial.login")}</span>
             </Link>
             <Link
               href="/register"
               className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-700 text-white hover:bg-amber-800 transition"
             >
               <UserPlus className="w-3 h-3" />
-              <span>Daftar Gratis</span>
+              <span>{t("trial.register")}</span>
             </Link>
           </div>
         </div>
@@ -184,9 +183,9 @@ export default function TrialQuizPage() {
         {/* Question Counter & Info */}
         <div className="flex items-center justify-between mb-4">
           <span className="text-xs font-mono text-neutral-500 font-medium">
-            Soal {currentIndex + 1} dari {questions.length}
+            {t("quiz.questionOf", { current: currentIndex + 1, total: questions.length })}
           </span>
-          <span className="text-xs font-mono text-neutral-400">Pilihan Ganda</span>
+          <span className="text-xs font-mono text-neutral-400"></span>
         </div>
 
         {/* Question Card */}
@@ -235,7 +234,7 @@ export default function TrialQuizPage() {
             className="py-3 px-5 rounded-xl bg-white border border-neutral-200 text-xs sm:text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:pointer-events-none transition flex items-center gap-2 cursor-pointer shadow-2xs"
           >
             <ChevronLeft className="w-4 h-4" />
-            <span>Sebelumnya</span>
+            <span>{t("trial.previous")}</span>
           </button>
 
           {currentIndex === questions.length - 1 ? (
@@ -244,14 +243,14 @@ export default function TrialQuizPage() {
               className="py-3 px-6 rounded-xl bg-neutral-900 text-white text-xs sm:text-sm font-medium hover:bg-neutral-800 active:scale-[0.99] transition flex items-center gap-2 cursor-pointer shadow-xs"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Selesai &amp; Lihat Skor</span>
+              <span>{t("quiz.finishAndScore")}</span>
             </button>
           ) : (
             <button
               onClick={() => setCurrentIndex((p) => Math.min(questions.length - 1, p + 1))}
               className="py-3 px-6 rounded-xl bg-neutral-900 text-white text-xs sm:text-sm font-medium hover:bg-neutral-800 active:scale-[0.99] transition flex items-center gap-2 cursor-pointer shadow-xs"
             >
-              <span>Berikutnya</span>
+              <span>{t("trial.next")}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           )}
@@ -259,7 +258,7 @@ export default function TrialQuizPage() {
       </main>
 
       <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
-        Quick — Kuis Interaktif Mode Trial
+        {t("footer.tagline")}
       </footer>
 
       {/* Submit Confirmation Dialog */}
