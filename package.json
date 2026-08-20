@@ -14,7 +14,8 @@
     "db:studio": "drizzle-kit studio",
     "db:test": "tsx scripts/test-db.ts",
     "ai:test": "tsx scripts/test-ai.ts",
-    "api:test": "tsx scripts/test-api-e2e.ts"
+    "api:test": "tsx scripts/test-api-e2e.ts",
+    "test": "tsx scripts/test-suite.ts"
   },
   "dependencies": {
     "@google/genai": "^2.17.1",

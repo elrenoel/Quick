@@ -263,6 +263,10 @@
   "history.deleteConfirmTitle": "Yakin hapus dokumen ini?",
   "history.deleteConfirmMessage": "Dokumen \"{title}\" akan dipindahkan ke sampah. Anda bisa memulihkannya nanti dari halaman Sampah.",
 
+  "trial.limitReachedTitle": "Limit harian tercapai",
+  "trial.limitReachedMessage": "Data trial kamu masih tersimpan di browser ini. Data akan otomatis disimpan ke akun besok setelah limit reset.",
+  "trial.limitReachedHint": "Coba lagi besok, atau generate langsung setelah login jika masih ada kuota.",
+
   "footer.tagline": "Quick — AI Flashcard & Quiz App",
   "footer.stage": "Stage 8.7: i18n ID/EN"
 }

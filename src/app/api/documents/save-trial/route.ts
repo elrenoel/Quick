@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db, documents, flashcards, quizQuestions, quizSets } from "@/db";
 import { eq } from "drizzle-orm";
 import { handleApiError } from "@/lib/api-error";
+import { DAILY_LIMIT, getUserQuota, incrementGenerationUsage } from "@/lib/daily-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -34,7 +35,29 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as SaveTrialBody;
 
-    // 2. Validasi payload dasar
+    // 2. Cek daily limit (sama persis seperti generate)
+    const quota = await getUserQuota(session.user.id);
+    if (!quota) {
+      return NextResponse.json(
+        { success: false, error: "Data user tidak ditemukan." },
+        { status: 404 }
+      );
+    }
+
+    if (quota.currentCount >= DAILY_LIMIT) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Limit harian ${DAILY_LIMIT}x generate sudah tercapai. Data trial kamu masih tersimpan di browser ini, akan otomatis disimpan besok setelah limit reset.`,
+          limitReached: true,
+          remainingToday: 0,
+          resetDate: quota.today,
+        },
+        { status: 429 }
+      );
+    }
+
+    // 3. Validasi payload dasar
     if (!body.raw_text || !body.title) {
       return NextResponse.json(
         { success: false, error: "Data trial tidak lengkap (title atau raw_text kosong)." },
@@ -56,7 +79,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Insert ke database secara atomic (gagal = rollback semua)
+    // 4. Insert ke database secara atomic (gagal = rollback semua)
     let insertedDocId: string | null = null;
     try {
       const [insertedDoc] = await db
@@ -71,7 +94,7 @@ export async function POST(request: NextRequest) {
         .returning();
       insertedDocId = insertedDoc.id;
 
-      // 4. Insert flashcards
+      // 5. Insert flashcards
       if (body.flashcards.length > 0) {
         await db.insert(flashcards).values(
           body.flashcards.map((card) => ({
@@ -82,7 +105,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 5. Insert quiz questions (terhubung ke quiz set default "Set 1")
+      // 6. Insert quiz questions (terhubung ke quiz set default "Set 1")
       if (body.quiz.length > 0) {
         const [quizSet] = await db
           .insert(quizSets)
@@ -107,10 +130,18 @@ export async function POST(request: NextRequest) {
       throw saveError;
     }
 
+    // 7. Increment daily limit counter
+    const newCount = await incrementGenerationUsage(
+      session.user.id,
+      quota.today,
+      quota.currentCount
+    );
+
     return NextResponse.json(
       {
         success: true,
         documentId: insertedDocId,
+        remainingToday: DAILY_LIMIT - newCount,
         message: "Data trial berhasil disimpan ke akun Anda.",
       },
       { status: 201 }

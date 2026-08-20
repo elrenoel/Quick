@@ -118,6 +118,7 @@ export default function LandingPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [loadingStep, setLoadingStep] = useState<number>(-1); // -1 = not loading
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [trialLimitNotice, setTrialLimitNotice] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // ── Fetch daily quota with useQuery ──────────────────────────────────────
@@ -158,12 +159,22 @@ export default function LandingPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(trialPayload),
           })
-            .then((res) => (res.ok ? res.json() : null))
+            .then((res) => {
+              if (res.status === 429) {
+                // Limit tercapai — JANGAN hapus localStorage, biarkan user coba lagi besok
+                return { limitReached: true };
+              }
+              return res.ok ? res.json() : null;
+            })
             .then((saveData) => {
               if (saveData?.documentId) {
+                // Berhasil disimpan — baru hapus dari localStorage
                 localStorage.removeItem("quick_trial_data");
                 localStorage.removeItem("quick_has_used_trial");
                 router.push(`/documents/${saveData.documentId}/flashcards`);
+              } else if (saveData?.limitReached) {
+                // Tampilkan notifikasi bahwa limit tercapai
+                setTrialLimitNotice(true);
               }
             })
             .catch((err) => {
@@ -597,6 +608,25 @@ export default function LandingPage() {
               <div className="mt-4 flex items-center gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3 rounded-lg">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {trialLimitNotice && (
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-amber-900">{t("trial.limitReachedTitle")}</p>
+                    <p className="text-xs text-amber-700">{t("trial.limitReachedMessage")}</p>
+                    <p className="text-[11px] text-amber-600">{t("trial.limitReachedHint")}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setTrialLimitNotice(false)}
+                  className="mt-3 text-[11px] text-amber-700 font-medium underline underline-offset-2 hover:text-amber-900 transition cursor-pointer"
+                >
+                  OK
+                </button>
               </div>
             )}
 

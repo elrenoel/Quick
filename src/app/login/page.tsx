@@ -22,6 +22,7 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [trialLimitNotice, setTrialLimitNotice] = useState(false);
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
@@ -75,6 +76,13 @@ function LoginForm() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(trialPayload),
             });
+
+            if (saveRes.status === 429) {
+              // Limit tercapai — JANGAN hapus localStorage
+              setTrialLimitNotice(true);
+              setIsLoading(false);
+              return;
+            }
 
             if (saveRes.ok) {
               const saveData = await saveRes.json();
@@ -137,6 +145,25 @@ function LoginForm() {
         <div className="mb-6 flex items-start gap-2.5 text-xs text-rose-600 bg-rose-50 border border-rose-200 p-3.5 rounded-xl">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {trialLimitNotice && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-amber-900">{t("trial.limitReachedTitle")}</p>
+              <p className="text-xs text-amber-700">{t("trial.limitReachedMessage")}</p>
+              <p className="text-[11px] text-amber-600">{t("trial.limitReachedHint")}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setTrialLimitNotice(false)}
+            className="mt-3 text-[11px] text-amber-700 font-medium underline underline-offset-2 hover:text-amber-900 transition cursor-pointer"
+          >
+            OK
+          </button>
         </div>
       )}
 

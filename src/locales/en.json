@@ -263,6 +263,10 @@
   "history.deleteConfirmTitle": "Delete this document?",
   "history.deleteConfirmMessage": "Document \"{title}\" will be moved to trash. You can restore it later from the Trash page.",
 
+  "trial.limitReachedTitle": "Daily limit reached",
+  "trial.limitReachedMessage": "Your trial data is still saved in this browser. It will auto-save to your account tomorrow after the limit resets.",
+  "trial.limitReachedHint": "Try again tomorrow, or generate directly after logging in when you have quota left.",
+
   "footer.tagline": "Quick — AI Flashcard & Quiz App",
   "footer.stage": "Stage 8.7: i18n ID/EN"
 }

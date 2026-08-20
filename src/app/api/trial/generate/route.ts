@@ -8,6 +8,32 @@ export const maxDuration = 60;
 
 const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15 MB
 
+// ── Simple in-memory IP rate limiter ────────────────────────────────────────
+// Max 5 trial generations per IP per hour. Resets automatically after TTL.
+const TRIAL_RATE_LIMIT = 5;
+const TRIAL_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+const ipHits = new Map<string, number[]>();
+
+function checkIpRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const hits = ipHits.get(ip) || [];
+  // Remove expired entries
+  const recent = hits.filter((t) => now - t < TRIAL_RATE_WINDOW_MS);
+  if (recent.length >= TRIAL_RATE_LIMIT) return false;
+  recent.push(now);
+  ipHits.set(ip, recent);
+  return true;
+}
+
+function getClientIp(request: NextRequest): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
 /**
  * Memeriksa apakah buffer file memiliki header Magic Bytes standar PDF (%PDF-)
  */
@@ -30,6 +56,18 @@ function isValidPdfHeader(buffer: ArrayBuffer): boolean {
  */
 export async function POST(request: NextRequest) {
   try {
+    // ── IP rate limit check ───────────────────────────────────────────────
+    const clientIp = getClientIp(request);
+    if (!checkIpRateLimit(clientIp)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Terlalu banyak percobaan trial dari IP ini. Coba lagi dalam 1 jam.",
+        },
+        { status: 429 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const customTitle = (formData.get("title") as string) || null;
