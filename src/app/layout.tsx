@@ -20,6 +20,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Yoohoo — AI Flashcard & Quiz Generator",
   description: "Ubah materi PDF kuliah & buku jadi flashcard dan quiz interaktif otomatis dengan AI.",
+  icons: {
+    icon: "/logo_yoohoo.png",
+    shortcut: "/logo_yoohoo.png",
+    apple: "/logo_yoohoo.png",
+  },
 };
 
 export default function RootLayout({

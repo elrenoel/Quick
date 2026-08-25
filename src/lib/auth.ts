@@ -68,7 +68,8 @@ export const auth = betterAuth({
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined),
   trustedOrigins: [
     "http://localhost:3000",
-    "https://yoohoo-one-gamma.vercel.app",
+    "https://www.yoohoo.my.id",
+    "https://yoohoo.my.id",
     ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
   ],
   database: drizzleAdapter(db, {
