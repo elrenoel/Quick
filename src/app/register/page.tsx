@@ -103,9 +103,9 @@ function RegisterForm() {
     try {
       await signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: "/app",
+        newUserCallbackURL: "/app",
         requestSignUp: true,
-        newUserCallbackURL: "/register?google_created=1",
         errorCallbackURL: "/login",
       });
     } catch (err: unknown) {

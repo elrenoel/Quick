@@ -33,7 +33,7 @@ function LoginForm() {
     try {
       await signIn.social({
         provider: "google",
-        callbackURL: "/",
+        callbackURL: "/app",
         errorCallbackURL: "/login",
       });
     } catch (err: unknown) {
