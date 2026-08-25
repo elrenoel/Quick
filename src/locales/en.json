@@ -10,6 +10,33 @@
   "landing.title": "Study smarter with AI.",
   "landing.subtitle": "Upload your course PDFs and get auto-generated flashcards & interactive quizzes for active recall.",
 
+  "landing.heroPill": "Read \"Yoohoo: AI Flashcards from PDF\"",
+  "landing.heroTitle1": "The smartest way",
+  "landing.heroTitle2": "to study with AI",
+  "landing.heroTag": "AI-Powered Study Tool",
+  "landing.heroSubtitle": "Turn your PDF course materials into flashcards and quizzes — instantly.",
+  "landing.ctaGetStarted": "Get Started Free",
+  "landing.ctaSeeDemo": "See Demo",
+  "landing.mockupDrop": "Drag your PDF here, or browse",
+  "landing.mockupHint": "Supports lecture slides, e-books, and PDF notes (max 15 MB)",
+
+  "landing.aboutTag": "What is Yoohoo?",
+  "landing.aboutTitle": "Stop passive reading.\nStart active learning.",
+  "landing.aboutDesc": "Yoohoo uses AI to extract key concepts from your lecture PDFs and transforms them into interactive flashcards and practice quizzes — so you can study smarter, not harder.",
+
+  "landing.feature1Title": "Upload & Extract",
+  "landing.feature1Desc": "Drop any course PDF — slides, e-books, or notes. Our AI reads it and pulls out the most important concepts automatically.",
+  "landing.feature2Title": "Flashcards",
+  "landing.feature2Desc": "Review key terms and definitions one by one with interactive flip cards. Perfect for memorization and active recall.",
+  "landing.feature3Title": "Quizzes",
+  "landing.feature3Desc": "Test your understanding with AI-generated multiple choice questions. Get instant feedback and track your progress over time.",
+  "landing.feature4Title": "History & Tracking",
+  "landing.feature4Desc": "All your materials and quiz scores are saved. Revisit flashcards or retake quizzes anytime to reinforce your learning.",
+
+  "landing.statsGenerations": "Generations served",
+  "landing.statsUsers": "Active learners",
+  "landing.statsQuestions": "Quiz questions created",
+
   "upload.badge": "Active Recall Generator from PDF",
   "upload.quotaRemaining": "{remaining}/{limit} generations left today",
   "upload.title": "Turn your course PDFs into flashcards & quizzes automatically.",
@@ -272,5 +299,21 @@
   "trial.limitReachedHint": "Try again tomorrow, or generate directly after logging in when you have quota left.",
 
   "footer.tagline": "Yoohoo — AI Flashcard & Quiz App",
-  "footer.stage": "Stage 8.7: i18n ID/EN"
+  "footer.stage": "Stage 8.7: i18n ID/EN",
+
+  "footer.desc": "AI-powered study tool that transforms your PDF course materials into interactive flashcards and quizzes for active recall.",
+  "footer.brandDesc": "Yoohoo is an AI flashcard and quiz generator for students.",
+  "footer.explore": "Explore",
+  "footer.linkUpload": "Upload PDF",
+  "footer.linkDemo": "Demo",
+  "footer.linkBlog": "Blog",
+  "footer.linkContact": "Contact",
+  "footer.followMe": "Follow me",
+  "footer.ctaTitle": "Start Learning",
+  "footer.ctaSubtitle": "Let's study together",
+  "footer.coursesTitle": "Courses & Tools",
+  "footer.coursesSubtitle": "Study resources",
+  "footer.privacy": "Privacy Policy",
+  "footer.locale": "English",
+  "footer.timezone": "WIB"
 }

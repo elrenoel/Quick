@@ -87,7 +87,8 @@ export default function ErrorState({
           <div className="mt-6">
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-700 underline underline-offset-4 hover:text-neutral-900 transition"
+              className="inline-flex items-center gap-1.5 text-xs font-medium underline underline-offset-4 transition"
+              style={{ color: '#FDF7EB' }}
             >
               <Home className="w-3 h-3" /> {st("error.backToHome")}
             </Link>

@@ -280,7 +280,8 @@ export default function LoginPage() {
         rightContent={
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 transition"
+            className="inline-flex items-center gap-1.5 text-xs font-medium transition"
+            style={{ color: '#FDF7EB' }}
           >
             <span>{t("auth.backToHome")}</span>
           </Link>

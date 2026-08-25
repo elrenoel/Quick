@@ -10,6 +10,33 @@
   "landing.title": "Belajar lebih efektif dengan AI.",
   "landing.subtitle": "Upload materi kuliah dalam PDF, dan dapatkan flashcard & kuis interaktif otomatis untuk recall aktif.",
 
+  "landing.heroPill": "Baca \"Yoohoo: Flashcard AI dari PDF\"",
+  "landing.heroTitle1": "Cara paling cerdas",
+  "landing.heroTitle2": "belajar dengan AI",
+  "landing.heroTag": "Alat Belajar Berbasis AI",
+  "landing.heroSubtitle": "Ubah materi PDF kuliah jadi flashcard dan kuis — secara instan.",
+  "landing.ctaGetStarted": "Mulai Gratis",
+  "landing.ctaSeeDemo": "Lihat Demo",
+  "landing.mockupDrop": "Tarik file PDF ke sini, atau pilih file",
+  "landing.mockupHint": "Mendukung slide kuliah, ebook, dan catatan PDF (maks 15 MB)",
+
+  "landing.aboutTag": "Apa itu Yoohoo?",
+  "landing.aboutTitle": "Tinggalkan cara baca pasif.\nMulai belajar aktif.",
+  "landing.aboutDesc": "Yoohoo menggunakan AI untuk mengekstrak konsep penting dari PDF kuliah Anda dan mengubahnya menjadi flashcard interaktif serta kuis latihan — supaya belajar lebih efektif.",
+
+  "landing.feature1Title": "Upload & Ekstrak",
+  "landing.feature1Desc": "Upload PDF materi kuliah — slide, ebook, atau catatan. AI kami akan membacanya dan menarik konsep penting secara otomatis.",
+  "landing.feature2Title": "Flashcard",
+  "landing.feature2Desc": "Pelajari istilah dan definisi satu per satu dengan kartu flip interaktif. Sempurna untuk hafalan dan recall aktif.",
+  "landing.feature3Title": "Kuis",
+  "landing.feature3Desc": "Uji pemahaman Anda dengan soal pilihan ganda hasil AI. Dapat feedback langsung dan pantau progres dari waktu ke waktu.",
+  "landing.feature4Title": "Riwayat & Lacak Progres",
+  "landing.feature4Desc": "Semua materi dan skor kuis tersimpan. Ulangi flashcard atau kerjakan kuis ulang kapan saja untuk memperkuat pemahaman.",
+
+  "landing.statsGenerations": "Generasi terbuat",
+  "landing.statsUsers": "Siswa aktif",
+  "landing.statsQuestions": "Soal kuis dibuat",
+
   "upload.badge": "Active Recall Generator dari PDF",
   "upload.quotaRemaining": "{remaining}/{limit} generate tersisa hari ini",
   "upload.title": "Ubah materi PDF kuliah jadi flashcard & kuis otomatis.",
@@ -272,5 +299,21 @@
   "trial.limitReachedHint": "Coba lagi besok, atau generate langsung setelah login jika masih ada kuota.",
 
   "footer.tagline": "Yoohoo — AI Flashcard & Quiz App",
-  "footer.stage": "Stage 8.7: i18n ID/EN"
+  "footer.stage": "Stage 8.7: i18n ID/EN",
+
+  "footer.desc": "Alat belajar berbasis AI yang mengubah materi PDF kuliah menjadi flashcard interaktif dan kuis untuk recall aktif.",
+  "footer.brandDesc": "Yoohoo adalah generator flashcard & kuis AI untuk pelajar.",
+  "footer.explore": "Eksplorasi",
+  "footer.linkUpload": "Upload PDF",
+  "footer.linkDemo": "Demo",
+  "footer.linkBlog": "Blog",
+  "footer.linkContact": "Kontak",
+  "footer.followMe": "Ikuti kami",
+  "footer.ctaTitle": "Mulai Belajar",
+  "footer.ctaSubtitle": "Yuk belajar bersama",
+  "footer.coursesTitle": "Kursus & Alat",
+  "footer.coursesSubtitle": "Sumber belajar",
+  "footer.privacy": "Kebijakan Privasi",
+  "footer.locale": "Indonesia",
+  "footer.timezone": "WIB"
 }
