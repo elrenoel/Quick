@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "@/lib/session-provider";
 import { useLanguage } from "@/hooks/use-language";
 import { signOut } from "@/lib/auth-client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 
 export interface NavbarNavLink {
@@ -55,6 +55,7 @@ export function useNavbar(): UseNavbarReturn {
     invalidate: invalidateSession,
   } = useSession();
   const { t, lang } = useLanguage();
+  const queryClient = useQueryClient();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // ── Navigation links (visible when logged in) ──────────────────────────
@@ -101,8 +102,10 @@ export function useNavbar(): UseNavbarReturn {
     setIsLoggingOut(true);
     try {
       await signOut();
+      // Immediately clear the session from cache so landing page won't redirect back
+      queryClient.setQueryData(["better-auth-session"], null);
       invalidateSession();
-      router.refresh();
+      router.push("/");
     } catch {
       // Ignored — signOut is best-effort
     } finally {
