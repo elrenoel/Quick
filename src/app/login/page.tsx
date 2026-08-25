@@ -6,7 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
 import { useSession } from "@/lib/session-provider";
 import { useI18n } from "@/lib/i18n";
-import { ArrowRight, AlertCircle, Loader2, ArrowLeft, Info } from "lucide-react";
+import { ArrowRight, AlertCircle, Loader2, Info } from "lucide-react";
+import Navbar from "@/components/layout/Navbar";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 
 function LoginForm() {
   const router = useRouter();
@@ -67,7 +70,7 @@ function LoginForm() {
       }
 
       if (typeof window !== "undefined") {
-        const rawTrial = localStorage.getItem("quick_trial_data");
+        const rawTrial = localStorage.getItem("yoohoo_trial_data");
         if (rawTrial) {
           try {
             const trialPayload = JSON.parse(rawTrial);
@@ -86,8 +89,8 @@ function LoginForm() {
 
             if (saveRes.ok) {
               const saveData = await saveRes.json();
-              localStorage.removeItem("quick_trial_data");
-              localStorage.removeItem("quick_has_used_trial");
+              localStorage.removeItem("yoohoo_trial_data");
+              localStorage.removeItem("yoohoo_has_used_trial");
               router.push(`/documents/${saveData.documentId}/flashcards`);
               router.refresh();
               return;
@@ -99,7 +102,7 @@ function LoginForm() {
       }
 
       invalidateSession();
-      router.push("/");
+      router.push("/app");
       router.refresh();
     } catch (err: unknown) {
       setErrorMessage(
@@ -110,7 +113,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-2xl p-8 shadow-xs">
+    <Card>
       <div className="mb-6 text-center">
         <h1 className="text-2xl font-bold tracking-tight text-neutral-900 mb-1.5">
           {t("auth.loginTitle")}
@@ -167,11 +170,13 @@ function LoginForm() {
         </div>
       )}
 
-      <button
+      <Button
         type="button"
+        variant="secondary"
+        size="lg"
         onClick={handleGoogleSignIn}
         disabled={isLoading || isGoogleLoading}
-        className="w-full py-3 px-4 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 active:scale-[0.99] text-xs sm:text-sm font-medium text-neutral-800 transition flex items-center justify-center gap-2.5 cursor-pointer shadow-2xs disabled:opacity-50"
+        className="w-full"
       >
         {isGoogleLoading ? (
           <Loader2 className="w-4 h-4 animate-spin text-neutral-600" />
@@ -184,7 +189,7 @@ function LoginForm() {
           </svg>
         )}
         <span>{t("auth.googleContinue")}</span>
-      </button>
+      </Button>
 
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
@@ -231,10 +236,12 @@ function LoginForm() {
         </div>
 
         <div className="pt-2">
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="lg"
             disabled={isLoading}
-            className="w-full py-3 px-5 rounded-xl bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-50 transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+            className="w-full"
           >
             {isLoading ? (
               <>
@@ -247,7 +254,7 @@ function LoginForm() {
                 <ArrowRight className="w-4 h-4" />
               </>
             )}
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -260,7 +267,7 @@ function LoginForm() {
           {t("auth.signUpNow")}
         </Link>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -269,26 +276,16 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
-      <header className="border-b border-neutral-200 bg-white/90 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-neutral-900 text-white flex items-center justify-center font-bold text-base tracking-tight transition-transform group-hover:scale-105">
-              Q
-            </div>
-            <span className="font-semibold text-neutral-900 tracking-tight text-lg">
-              Quick
-            </span>
-          </Link>
-
+      <Navbar
+        rightContent={
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 transition"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
             <span>{t("auth.backToHome")}</span>
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       <main className="max-w-md mx-auto px-6 py-12 flex-1 w-full flex flex-col justify-center">
         <Suspense
@@ -303,9 +300,6 @@ export default function LoginPage() {
         </Suspense>
       </main>
 
-      <footer className="border-t border-neutral-200 bg-white py-6 text-center text-xs text-neutral-500">
-        {t("footer.tagline")}
-      </footer>
     </div>
   );
 }

@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   ClipboardList,
   ChevronRight,
 } from "lucide-react";
-import ErrorState from "@/components/ErrorState";
+import ErrorState from "@/components/ui/ErrorState";
 import { useI18n } from "@/lib/i18n";
 import { t as st } from "@/lib/t";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { formatDateTime } from "@/lib/format-date";
+import Navbar from "@/components/layout/Navbar";
+import Card from "@/components/ui/Card";
 
 interface QuizAttempt {
   id: string;
@@ -79,33 +80,16 @@ export default function DocumentAttemptsPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
-      {/* Top Navbar */}
-      <header className="border-b border-neutral-200 bg-white/90 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/history"
-              className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-              title={t("history.pageTitle")}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div className="min-w-0">
-              <h1 className="font-semibold text-neutral-900 text-sm sm:text-base tracking-tight truncate max-w-[220px] sm:max-w-md">
-                {isLoading ? (
-                  <span className="inline-block h-4 w-40 rounded bg-neutral-100 animate-pulse" />
-                ) : (
-                  documentTitle
-                )}
-              </h1>
-              <p className="text-[11px] text-neutral-500 font-mono">
-                {t("attempts.pageTitle")}
-                {!isLoading && attempts.length > 0 && ` · ${attempts.length} Attempt`}
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar
+        backHref="/history"
+        title={isLoading ? undefined : documentTitle}
+        subtitle={
+          <>
+            {t("attempts.pageTitle")}
+            {!isLoading && attempts.length > 0 && ` · ${attempts.length} Attempt`}
+          </>
+        }
+      />
 
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-6 py-10 flex-1 w-full">
@@ -123,16 +107,17 @@ export default function DocumentAttemptsPage() {
         {isLoading && (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div
+              <Card
                 key={i}
-                className="bg-white border border-neutral-200 rounded-xl p-5 shadow-2xs animate-pulse flex items-center justify-between"
+                variant="compact"
+                className="animate-pulse flex items-center justify-between"
               >
                 <div className="space-y-2 flex-1">
                   <div className="h-4 bg-neutral-100 rounded w-1/2" />
                   <div className="h-3 bg-neutral-100 rounded w-1/4" />
                 </div>
                 <div className="w-6 h-6 bg-neutral-100 rounded-lg" />
-              </div>
+              </Card>
             ))}
           </div>
         )}
@@ -212,7 +197,7 @@ export default function DocumentAttemptsPage() {
 
         {/* Empty State */}
         {!isLoading && !error && attempts.length === 0 && (
-          <div className="bg-white border border-neutral-200 rounded-2xl p-12 text-center shadow-xs">
+          <Card variant="centered" className="p-12">
             <div className="w-12 h-12 rounded-2xl bg-neutral-100 flex items-center justify-center mx-auto mb-4 text-neutral-500">
               <ClipboardList className="w-6 h-6" />
             </div>
@@ -228,14 +213,10 @@ export default function DocumentAttemptsPage() {
             >
               {t("attempts.startQuiz")}
             </Link>
-          </div>
+          </Card>
         )}
       </main>
 
-      {/* Minimal Footer */}
-      <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
-        Quick — {t("attempts.pageTitle")}
-      </footer>
     </div>
   );
 }

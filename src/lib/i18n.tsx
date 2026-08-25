@@ -25,7 +25,7 @@ export interface I18nContextValue {
   t: (key: TranslationKey, params?: TranslationParams) => string;
 }
 
-const STORAGE_KEY = "quick_lang";
+const STORAGE_KEY = "yoohoo_lang";
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 

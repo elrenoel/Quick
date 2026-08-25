@@ -12,7 +12,7 @@ dotenv.config({ path: ".env.local" });
 
 async function main() {
   console.log("\n============================================================");
-  console.log("⚡ Quick AI Pipeline Test (Multi-Tier Fallback Optimization)");
+  console.log("⚡ Yoohoo AI Pipeline Test (Multi-Tier Fallback Optimization)");
   console.log("============================================================\n");
 
   const apiKey = process.env.GEMINI_API_KEY;

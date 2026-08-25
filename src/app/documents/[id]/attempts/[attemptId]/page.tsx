@@ -9,7 +9,9 @@ import {
   Minus,
   Trophy,
 } from "lucide-react";
-import ErrorState from "@/components/ErrorState";
+import ErrorState from "@/components/ui/ErrorState";
+import Navbar from "@/components/layout/Navbar";
+import Card from "@/components/ui/Card";
 import { useI18n } from "@/lib/i18n";
 import { t as st } from "@/lib/t";
 import { useQuery } from "@tanstack/react-query";
@@ -165,33 +167,16 @@ export default function AttemptDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
-      {/* Top Navbar */}
-      <header className="border-b border-neutral-200 bg-white/90 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/documents/${docId}/attempts`}
-              className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-              title={t("attempt.backToAttempts")}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div className="min-w-0">
-              <h1 className="font-semibold text-neutral-900 text-sm sm:text-base tracking-tight truncate max-w-[220px] sm:max-w-md">
-                {documentTitle}
-              </h1>
-              <p className="text-[11px] text-neutral-500 font-mono">
-                {t("attempt.reviewTitle")}
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar
+        backHref={`/documents/${docId}/attempts`}
+        title={documentTitle}
+        subtitle={t("attempt.reviewTitle")}
+      />
 
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-6 py-10 flex-1 w-full">
         {/* Summary Card */}
-        <div className="bg-white border border-neutral-200 rounded-2xl p-8 shadow-xs text-center mb-6">
+        <Card className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-neutral-100 border border-neutral-200 text-neutral-800 mb-4">
             <Trophy className="w-7 h-7" />
           </div>
@@ -239,7 +224,7 @@ export default function AttemptDetailPage() {
               </div>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Review Section */}
         {hasReview ? (
@@ -346,7 +331,7 @@ export default function AttemptDetailPage() {
             </div>
           </>
         ) : (
-          <div className="bg-white border border-neutral-200 rounded-2xl p-10 text-center shadow-xs">
+          <Card variant="centered" className="p-10">
             <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center mx-auto mb-3 text-neutral-500">
               <span className="text-lg">📋</span>
             </div>
@@ -356,7 +341,7 @@ export default function AttemptDetailPage() {
             <p className="text-xs text-neutral-500 max-w-sm mx-auto">
               {t("attempt.noDetailMessage")}
             </p>
-          </div>
+          </Card>
         )}
 
         {/* Bottom CTA */}
@@ -370,10 +355,6 @@ export default function AttemptDetailPage() {
         </div>
       </main>
 
-      {/* Minimal Footer */}
-      <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
-        Quick — {t("attempt.reviewTitle")}
-      </footer>
     </div>
   );
 }

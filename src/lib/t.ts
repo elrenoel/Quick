@@ -15,7 +15,7 @@ const EN_DICT = enDict as Record<TranslationKey, string>;
 
 function getLang(): "id" | "en" {
   try {
-    const saved = window.localStorage.getItem("quick_lang");
+    const saved = window.localStorage.getItem("yoohoo_lang");
     if (saved === "en" || saved === "id") return saved;
   } catch {
     // localStorage unavailable

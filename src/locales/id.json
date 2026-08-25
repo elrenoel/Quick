@@ -5,6 +5,10 @@
   "nav.register": "Daftar",
   "nav.logout": "Keluar",
   "nav.logoutTitle": "Keluar dari akun",
+  "nav.trash": "Sampah",
+
+  "landing.title": "Belajar lebih efektif dengan AI.",
+  "landing.subtitle": "Upload materi kuliah dalam PDF, dan dapatkan flashcard & kuis interaktif otomatis untuk recall aktif.",
 
   "upload.badge": "Active Recall Generator dari PDF",
   "upload.quotaRemaining": "{remaining}/{limit} generate tersisa hari ini",
@@ -67,7 +71,7 @@
   "error.boundaryMessage": "Aplikasi mengalami gangguan tak terduga. Silakan coba muat ulang halaman atau kembali ke beranda.",
   "error.reload": "Muat Ulang",
 
-  "auth.loginTitle": "Masuk ke Quick",
+  "auth.loginTitle": "Masuk ke Yoohoo",
   "auth.loginSubtitle": "Masuk untuk mengelola materi flashcard & kuis Anda.",
   "auth.googleFailed": "Gagal menghubungkan ke akun Google.",
   "auth.emailPasswordRequired": "Email dan password wajib diisi.",
@@ -85,7 +89,7 @@
   "auth.loadingForm": "Memuat formulir masuk...",
   "auth.alreadyRegistered": "Akun dengan email ini sudah terdaftar. Silakan masuk untuk melanjutkan.",
   "auth.googleLoginFailed": "Gagal masuk dengan Google. Silakan coba lagi.",
-  "auth.registerTitle": "Daftar Akun Quick",
+  "auth.registerTitle": "Daftar Akun Yoohoo",
   "auth.registerSubtitle": "Buat akun gratis untuk mulai belajar dengan flashcard & kuis AI.",
   "auth.googleSignUp": "Daftar dengan Google",
   "auth.fullNameLabel": "Nama Lengkap",
@@ -267,6 +271,6 @@
   "trial.limitReachedMessage": "Data trial kamu masih tersimpan di browser ini. Data akan otomatis disimpan ke akun besok setelah limit reset.",
   "trial.limitReachedHint": "Coba lagi besok, atau generate langsung setelah login jika masih ada kuota.",
 
-  "footer.tagline": "Quick — AI Flashcard & Quiz App",
+  "footer.tagline": "Yoohoo — AI Flashcard & Quiz App",
   "footer.stage": "Stage 8.7: i18n ID/EN"
 }

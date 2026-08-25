@@ -12,7 +12,7 @@ async function main() {
   const dbUrl = process.env.DATABASE_URL;
 
   console.log("\n========================================");
-  console.log("🔍 Quick DB Connection Test (Neon PostgreSQL)");
+  console.log("🔍 Yoohoo DB Connection Test (Neon PostgreSQL)");
   console.log("========================================\n");
 
   if (!dbUrl || dbUrl.trim() === "") {

@@ -27,7 +27,7 @@ export async function GET() {
       status: "ok",
       database: "connected",
       timestamp: firstRow?.current_time ?? new Date().toISOString(),
-      info: "Quick Flashcard & Quiz AI API is ready (Stage 0)",
+      info: "Yoohoo Flashcard & Quiz AI API is ready (Stage 0)",
     });
   } catch (error) {
     return NextResponse.json(

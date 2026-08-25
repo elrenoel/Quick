@@ -5,6 +5,10 @@
   "nav.register": "Sign up",
   "nav.logout": "Log out",
   "nav.logoutTitle": "Log out of account",
+  "nav.trash": "Trash",
+
+  "landing.title": "Study smarter with AI.",
+  "landing.subtitle": "Upload your course PDFs and get auto-generated flashcards & interactive quizzes for active recall.",
 
   "upload.badge": "Active Recall Generator from PDF",
   "upload.quotaRemaining": "{remaining}/{limit} generations left today",
@@ -67,7 +71,7 @@
   "error.boundaryMessage": "The app hit an unexpected error. Please try reloading the page or going back to the homepage.",
   "error.reload": "Reload",
 
-  "auth.loginTitle": "Log in to Quick",
+  "auth.loginTitle": "Log in to Yoohoo",
   "auth.loginSubtitle": "Log in to manage your flashcard & quiz materials.",
   "auth.googleFailed": "Failed to connect to Google account.",
   "auth.emailPasswordRequired": "Email and password are required.",
@@ -85,7 +89,7 @@
   "auth.loadingForm": "Loading login form...",
   "auth.alreadyRegistered": "An account with this email already exists. Please log in to continue.",
   "auth.googleLoginFailed": "Failed to log in with Google. Please try again.",
-  "auth.registerTitle": "Create Quick Account",
+  "auth.registerTitle": "Create Yoohoo Account",
   "auth.registerSubtitle": "Create a free account to start learning with AI flashcards & quizzes.",
   "auth.googleSignUp": "Sign up with Google",
   "auth.fullNameLabel": "Full Name",
@@ -267,6 +271,6 @@
   "trial.limitReachedMessage": "Your trial data is still saved in this browser. It will auto-save to your account tomorrow after the limit resets.",
   "trial.limitReachedHint": "Try again tomorrow, or generate directly after logging in when you have quota left.",
 
-  "footer.tagline": "Quick — AI Flashcard & Quiz App",
+  "footer.tagline": "Yoohoo — AI Flashcard & Quiz App",
   "footer.stage": "Stage 8.7: i18n ID/EN"
 }

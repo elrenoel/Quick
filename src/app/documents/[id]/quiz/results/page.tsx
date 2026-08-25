@@ -13,6 +13,8 @@ import {
   Trophy,
   Minus,
 } from "lucide-react";
+import Navbar from "@/components/layout/Navbar";
+import Card from "@/components/ui/Card";
 import { formatDateTime } from "@/lib/format-date";
 
 interface ReviewItem {
@@ -100,30 +102,16 @@ export default function QuizResultsPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
-      {/* Top Navbar */}
-      <header className="border-b border-neutral-200 bg-white/90 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-            >
-              <Home className="w-4 h-4" />
-            </Link>
-            <div>
-              <h1 className="font-semibold text-neutral-900 text-sm sm:text-base tracking-tight truncate max-w-[200px] sm:max-w-md">
-                {result.documentTitle}
-              </h1>
-              <p className="text-[11px] text-neutral-500 font-mono">Hasil Kuis</p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar
+        backHref="/"
+        title={result.documentTitle}
+        subtitle="Hasil Kuis"
+      />
 
       {/* Main Content */}
       <main className="max-w-2xl mx-auto px-6 py-10 flex-1 w-full">
         {/* Score Hero Card */}
-        <div className="bg-white border border-neutral-200 rounded-2xl p-8 shadow-xs text-center mb-6">
+        <Card className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-neutral-100 border border-neutral-200 text-neutral-800 mb-4">
             <Trophy className="w-8 h-8" />
           </div>
@@ -161,7 +149,7 @@ export default function QuizResultsPage() {
               <div className="text-neutral-500 mt-0.5">Dilewati</div>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
@@ -180,7 +168,7 @@ export default function QuizResultsPage() {
             <span>Pelajari Flashcard Lagi</span>
           </Link>
           <Link
-            href="/"
+            href="/app"
             className="flex-1 py-3 px-4 text-sm font-medium rounded-xl bg-white border border-neutral-200 text-neutral-800 hover:bg-neutral-50 transition text-center flex items-center justify-center gap-2"
           >
             <Home className="w-4 h-4" />
@@ -293,7 +281,7 @@ export default function QuizResultsPage() {
             Ingin belajar materi yang berbeda?
           </p>
           <Link
-            href="/"
+            href="/app"
             className="inline-flex items-center gap-1.5 text-xs font-medium text-neutral-900 underline underline-offset-4 hover:text-neutral-600 transition"
           >
             Upload PDF baru <ArrowRight className="w-3 h-3" />
@@ -301,10 +289,6 @@ export default function QuizResultsPage() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
-        Quick MVP — Hasil Kuis
-      </footer>
     </div>
   );
 }

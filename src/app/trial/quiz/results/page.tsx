@@ -8,7 +8,6 @@ import {
   XCircle,
   RotateCcw,
   BookOpen,
-  ArrowRight,
   Trophy,
   LogIn,
   UserPlus,
@@ -16,6 +15,8 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { t as st } from "@/lib/t";
 import { formatDateTime } from "@/lib/format-date";
+import Navbar from "@/components/layout/Navbar";
+import Card from "@/components/ui/Card";
 
 interface ReviewItem {
   question: string;
@@ -98,29 +99,17 @@ export default function TrialQuizResultsPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
-      {/* Top Navbar */}
-      <header className="border-b border-neutral-200 bg-white/90 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-neutral-900 text-white flex items-center justify-center font-bold text-base tracking-tight transition-transform group-hover:scale-105">
-              Q
-            </div>
-            <span className="font-semibold text-neutral-900 tracking-tight text-lg">
-              Quick
-            </span>
+      <Navbar
+        rightContent={
+          <Link
+            href="/trial/flashcards"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>{t("trial.reviewFlashcard")}</span>
           </Link>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href="/trial/flashcards"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-neutral-700 bg-neutral-100 hover:bg-neutral-200 transition"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>{t("trial.reviewFlashcard")}</span>
-            </Link>
-          </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Trial Notice Banner */}
       <div className="bg-amber-50 border-b border-amber-200 px-6 py-3">
@@ -150,7 +139,7 @@ export default function TrialQuizResultsPage() {
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-6 py-10 flex-1 w-full">
         {/* Score Hero Summary Card */}
-        <div className="bg-white border border-neutral-200 rounded-2xl p-8 shadow-xs text-center mb-8">
+        <Card className="text-center mb-8">
           <div className="w-14 h-14 rounded-2xl bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-4 text-neutral-800">
             <Trophy className="w-7 h-7" />
           </div>
@@ -175,7 +164,7 @@ export default function TrialQuizResultsPage() {
             </p>
           )}
 
-          {/* Quick Stat Pill Grid */}
+          {/* Yoohoo Stat Pill Grid */}
           <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto mb-6">
             <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-center">
               <span className="text-lg font-bold text-emerald-800 font-mono">
@@ -208,7 +197,7 @@ export default function TrialQuizResultsPage() {
               <span>{t("trial.openFlashcards")}</span>
             </Link>
           </div>
-        </div>
+        </Card>
 
         {/* Detailed Question Review List */}
         <div className="space-y-4">
@@ -292,9 +281,6 @@ export default function TrialQuizResultsPage() {
         </div>
       </main>
 
-      <footer className="border-t border-neutral-200 bg-white py-6 text-center text-xs text-neutral-500">
-        Quick — AI Flashcard &amp; Quiz App
-      </footer>
     </div>
   );
 }

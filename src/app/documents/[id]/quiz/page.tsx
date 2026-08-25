@@ -11,12 +11,14 @@ import {
   Loader2,
   Sparkles,
 } from "lucide-react";
-import ErrorState from "@/components/ErrorState";
+import ErrorState from "@/components/ui/ErrorState";
 import { useI18n } from "@/lib/i18n";
+import Navbar from "@/components/layout/Navbar";
+import Button from "@/components/ui/Button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { getOrCreateSessionId } from "@/lib/session";
-import SubmitConfirmDialog from "@/components/SubmitConfirmDialog";
+import SubmitConfirmDialog from "@/components/ui/SubmitConfirmDialog";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface QuizQuestion {
@@ -270,51 +272,35 @@ export default function QuizPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
-      {/* Top Navbar & Progress Bar */}
-      <header className="border-b border-neutral-200 bg-white/90 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/documents/${docId}/flashcards`}
-              className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-              title={t("trial.backToFlashcard")}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Link>
-            <div>
-              <h1 className="font-semibold text-neutral-900 text-sm sm:text-base tracking-tight truncate max-w-[200px] sm:max-w-md">
-                {isLoading ? (
-                  <span className="inline-block h-4 w-40 rounded bg-neutral-100 animate-pulse" />
-                ) : (
-                  documentTitle
-                )}
-              </h1>
-              <p className="text-[11px] text-neutral-500 font-mono">
-                Quiz Pilihan Ganda
-                {!isLoading && selectedSetLabel && ` · ${selectedSetLabel}`}
-                {!isLoading && questions.length > 0 && ` · ${questions.length} Soal`}
-              </p>
-            </div>
-          </div>
-
-          {!isLoading && questions.length > 0 && (
+      <Navbar
+        backHref={`/documents/${docId}/flashcards`}
+        title={isLoading ? undefined : documentTitle}
+        subtitle={
+          <>
+            Quiz Pilihan Ganda
+            {!isLoading && selectedSetLabel && ` · ${selectedSetLabel}`}
+            {!isLoading && questions.length > 0 && ` · ${questions.length} Soal`}
+          </>
+        }
+        rightContent={
+          !isLoading && questions.length > 0 ? (
             <div className="flex items-center gap-2 text-xs font-mono text-neutral-600 bg-neutral-100 px-3 py-1.5 rounded-lg border border-neutral-200">
               <span>{t("quiz.answered")}</span>
               <span className="font-bold text-neutral-900">
                 {answeredCount} / {questions.length}
               </span>
             </div>
-          )}
-        </div>
-
-        {/* Top Progress Bar */}
-        <div className="w-full bg-neutral-100 h-1.5">
-          <div
-            className="bg-neutral-900 h-1.5 transition-all duration-300 ease-out"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </header>
+          ) : undefined
+        }
+        bottomBar={
+          <div className="w-full bg-neutral-100 h-1.5">
+            <div
+              className="bg-neutral-900 h-1.5 transition-all duration-300 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        }
+      />
 
       {/* Main Quiz Container */}
       <main className="max-w-2xl mx-auto px-6 py-10 flex-1 w-full flex flex-col justify-center">
@@ -455,20 +441,22 @@ export default function QuizPage() {
 
             {/* Navigation & Submit Controls */}
             <div className="flex items-center justify-between gap-4">
-              <button
+              <Button
+                variant="secondary"
+                size="lg"
                 onClick={handlePrev}
                 disabled={currentIndex === 0}
-                className="py-3 px-5 rounded-xl bg-white border border-neutral-200 text-xs sm:text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:pointer-events-none transition flex items-center gap-2 cursor-pointer shadow-2xs"
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span>{t("quiz.previous")}</span>
-              </button>
+              </Button>
 
               {currentIndex === questions.length - 1 ? (
-                <button
+                <Button
+                  variant="success"
+                  size="lg"
                   onClick={() => setShowConfirmDialog(true)}
                   disabled={isSubmitting}
-                  className="py-3 px-6 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-medium transition flex items-center gap-2 cursor-pointer shadow-xs active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <>
@@ -481,15 +469,16 @@ export default function QuizPage() {
                       <span>{t("quiz.finishAndScore")}</span>
                     </>
                   )}
-                </button>
+                </Button>
               ) : (
-                <button
+                <Button
+                  variant="primary"
+                  size="lg"
                   onClick={handleNext}
-                  className="py-3 px-6 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-xs sm:text-sm font-medium transition flex items-center gap-2 cursor-pointer shadow-xs active:scale-[0.98]"
                 >
                   <span>{t("quiz.nextQuestion")}</span>
                   <ChevronRight className="w-4 h-4" />
-                </button>
+                </Button>
               )}
             </div>
           </>
@@ -497,10 +486,6 @@ export default function QuizPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
-        Quick MVP — Quiz Mode
-      </footer>
-
       {/* Submit Confirmation Dialog */}
       {showConfirmDialog && (
         <SubmitConfirmDialog

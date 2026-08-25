@@ -1,4 +1,4 @@
-# Testing Scenarios — Quick App
+# Testing Scenarios — Yoohoo App
 
 Panduan testing menyeluruh untuk semua fitur. Setiap skenario mencakup **langkah**, **kondisi**, dan **hasil yang diharapkan**.
 
@@ -140,7 +140,7 @@ Panduan testing menyeluruh untuk semua fitur. Setiap skenario mencakup **langkah
 
 ### TC-TRIAL-02: Trial data in localStorage
 - **Steps**: Setelah trial generate, buka DevTools > Application > Local Storage
-- **Expected**: Key `quick_trial_data` berisi JSON (title, raw_text, flashcards, quiz), key `quick_has_used_trial` = "true"
+- **Expected**: Key `yoohoo_trial_data` berisi JSON (title, raw_text, flashcards, quiz), key `yoohoo_has_used_trial` = "true"
 
 ### TC-TRIAL-03: Second trial attempt blocked
 - **Steps**: Setelah trial pertama, kembali ke `/`, coba upload lagi
@@ -168,11 +168,11 @@ Panduan testing menyeluruh untuk semua fitur. Setiap skenario mencakup **langkah
 
 ### TC-SAVE-01: Save trial to account — success
 - **Steps**: Generate trial, login/register, data otomatis tersimpan ke DB
-- **Expected**: Redirect ke flashcards page dokumen baru, `quick_trial_data` dihapus dari localStorage
+- **Expected**: Redirect ke flashcards page dokumen baru, `yoohoo_trial_data` dihapus dari localStorage
 
 ### TC-SAVE-02: Save trial — limit reached
 - **Steps**: Generate 5x dengan akun (limit habis), generate trial, login
-- **Expected**: Save-trial gagal (429), `quick_trial_data` TIDAK dihapus dari localStorage, user bisa coba lagi besok
+- **Expected**: Save-trial gagal (429), `yoohoo_trial_data` TIDAK dihapus dari localStorage, user bisa coba lagi besok
 
 ### TC-SAVE-03: Save trial — invalid session
 - **Steps**: Panggil `POST /api/documents/save-trial` tanpa session
@@ -451,11 +451,11 @@ Panduan testing menyeluruh untuk semua fitur. Setiap skenario mencakup **langkah
 - **Expected**: Save-trial gagal (429), localStorage TIDAK di-clear, user tetap di halaman
 
 ### TC-MIG-03: Auto-migration — invalid trial data
-- **Steps**: Set `quick_trial_data` ke string invalid di localStorage, login
+- **Steps**: Set `yoohoo_trial_data` ke string invalid di localStorage, login
 - **Expected**: Error caught silently, user tetap di halaman, localStorage tidak di-clear
 
 ### TC-MIG-04: Auto-migration — no trial data
-- **Steps**: Login tanpa ada `quick_trial_data` di localStorage
+- **Steps**: Login tanpa ada `yoohoo_trial_data` di localStorage
 - **Expected**: Tidak ada aksi, user di halaman normal
 
 ---
@@ -548,7 +548,7 @@ Panduan testing menyeluruh untuk semua fitur. Setiap skenario mencakup **langkah
 
 ---
 
-## Quick Reference: Test Data
+## Yoohoo Reference: Test Data
 
 ### Valid PDF for testing
 - Gunakan PDF 2-5 halaman dengan teks yang jelas (e.g., materi kuliah OS)

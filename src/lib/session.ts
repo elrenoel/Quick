@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 
-const SESSION_STORAGE_KEY = "quick_guest_session_id";
+const SESSION_STORAGE_KEY = "yoohoo_guest_session_id";
 
 /**
  * Mendapatkan session ID guest saat ini atau membuat yang baru jika belum ada di localStorage.

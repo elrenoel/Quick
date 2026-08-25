@@ -1,6 +1,6 @@
-# Quick
+# Yoohoo
 
-> **AI-powered Active Recall Generator** — Upload any PDF course material, and Quick automatically generates interactive flashcards and multiple-choice quizzes using Google Gemini AI.
+> **AI-powered Active Recall Generator** — Upload any PDF course material, and Yoohoo automatically generates interactive flashcards and multiple-choice quizzes using Google Gemini AI.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" />
@@ -12,9 +12,9 @@
 
 ---
 
-## What is Quick?
+## What is Yoohoo?
 
-Quick eliminates **passive reading** by transforming your lecture PDFs, e-books, and study notes into **active recall tools** — flashcards for concept review and quizzes for self-assessment.
+Yoohoo eliminates **passive reading** by transforming your lecture PDFs, e-books, and study notes into **active recall tools** — flashcards for concept review and quizzes for self-assessment.
 
 ### Core Loop
 
@@ -97,7 +97,7 @@ Upload PDF  -->  AI Analysis  -->  Flashcards  -->  Quiz  -->  Score & Review
 ## Project Structure
 
 ```
-quick/
+yoohoo/
 ├── src/
 │   ├── app/                          # Next.js App Router pages
 │   │   ├── page.tsx                  # Landing page & PDF upload
@@ -209,7 +209,7 @@ quick/
 
 ```bash
 git clone <your-repo-url>
-cd quick
+cd yoohoo
 npm install
 ```
 
@@ -219,7 +219,7 @@ Create `.env.local`:
 
 ```env
 # -- Database -----------------------------------------------------------
-DATABASE_URL=postgresql://user:pass@ep-xxx.us-east-2.aws.neon.tech/quick?sslmode=require
+DATABASE_URL=postgresql://user:pass@ep-xxx.us-east-2.aws.neon.tech/yoohoo?sslmode=require
 
 # -- AI -----------------------------------------------------------------
 GEMINI_API_KEY=your-google-gemini-api-key

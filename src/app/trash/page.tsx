@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut } from "@/lib/auth-client";
 import { useSession } from "@/lib/session-provider";
 import { formatDateTime } from "@/lib/format-date";
 import {
@@ -14,10 +13,13 @@ import {
   AlertTriangle,
   Info,
   User as UserIcon,
-  LogOut,
 } from "lucide-react";
-import ErrorState from "@/components/ErrorState";
+import ErrorState from "@/components/ui/ErrorState";
 import { useI18n } from "@/lib/i18n";
+import Navbar from "@/components/layout/Navbar";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -38,62 +40,6 @@ async function fetchTrashDocuments(): Promise<TrashDocument[]> {
   return data.documents || [];
 }
 
-interface ConfirmDialogProps {
-  title: string;
-  message: string;
-  confirmLabel: string;
-  confirmColor?: string;
-  onCancel: () => void;
-  onConfirm: () => void;
-}
-
-function ConfirmDialog({
-  title,
-  message,
-  confirmLabel,
-  confirmColor = "bg-rose-600 hover:bg-rose-700",
-  onCancel,
-  onConfirm,
-}: ConfirmDialogProps) {
-  const { t } = useI18n();
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/30 backdrop-blur-sm px-6"
-      role="dialog"
-      aria-modal="true"
-      onClick={onCancel}
-    >
-      <div
-        className="bg-white border border-neutral-200 rounded-2xl p-6 sm:p-8 shadow-lg w-full max-w-sm"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-lg font-semibold text-neutral-900 mb-2">
-          {title}
-        </h3>
-        <p className="text-sm text-neutral-600 leading-relaxed">{message}</p>
-
-        <div className="flex items-center justify-end gap-3 mt-6">
-          <button
-            autoFocus
-            onClick={onCancel}
-            className="py-2.5 px-5 rounded-xl bg-white border border-neutral-200 text-xs sm:text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition cursor-pointer"
-          >
-            {t("quiz.checkAgain")}
-          </button>
-          <button
-            onClick={onConfirm}
-            className={`py-2.5 px-5 rounded-xl ${confirmColor} text-white text-xs sm:text-sm font-medium transition flex items-center gap-2 cursor-pointer shadow-xs active:scale-[0.98]`}
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>{confirmLabel}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function TrashPage() {
   const router = useRouter();
   const { t } = useI18n();
@@ -101,10 +47,7 @@ export default function TrashPage() {
   const {
     data: session,
     isPending: isSessionPending,
-    invalidate: invalidateSession,
   } = useSession();
-
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // ── Confirm dialog state ─────────────────────────────────────────────────
   const [permanentDeleteTarget, setPermanentDeleteTarget] =
@@ -159,102 +102,13 @@ export default function TrashPage() {
     },
   });
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await signOut();
-      invalidateSession();
-      router.push("/");
-      router.refresh();
-    } catch {
-      // Ignored
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
-
   const handleRetry = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.trash });
   };
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
-      {/* Top Header */}
-      <header className="border-b border-neutral-200 bg-white/90 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-neutral-900 text-white flex items-center justify-center font-bold text-base tracking-tight transition-transform group-hover:scale-105">
-              Q
-            </div>
-            <span className="font-semibold text-neutral-900 tracking-tight text-lg">
-              Quick
-            </span>
-          </Link>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="px-3 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 transition"
-            >
-              {t("error.home")}
-            </Link>
-
-            <Link
-              href="/history"
-              className="px-3 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 transition"
-            >
-              {t("nav.history")}
-            </Link>
-
-            <Link
-              href="/trash"
-              className="px-3 py-1.5 text-xs font-medium text-neutral-900 font-semibold transition"
-            >
-              <Trash2 className="w-3.5 h-3.5 inline mr-0.5" />
-              {t("trash.pageTitle")}
-            </Link>
-
-            {!isSessionPending && (
-              <>
-                {session?.user ? (
-                  <div className="flex items-center gap-2">
-                    <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-neutral-100 border border-neutral-200 text-xs font-medium text-neutral-800">
-                      <UserIcon className="w-3.5 h-3.5 text-neutral-600" />
-                      <span className="truncate max-w-[120px]">
-                        {session.user.name || session.user.email}
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleLogout}
-                      disabled={isLoggingOut}
-                      title={t("nav.logoutTitle")}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition disabled:opacity-50 cursor-pointer"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">{t("nav.logout")}</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href="/login"
-                      className="px-3 py-1.5 text-xs font-medium text-neutral-700 hover:text-neutral-900 transition"
-                    >
-                      {t("nav.login")}
-                    </Link>
-                    <Link
-                      href="/register"
-                      className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 transition shadow-2xs"
-                    >
-                      {t("nav.register")}
-                    </Link>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-6 py-12 flex-1 w-full">
@@ -288,7 +142,7 @@ export default function TrashPage() {
 
         {/* Not logged in */}
         {!isSessionPending && !session?.user && (
-          <div className="bg-white border border-neutral-200 rounded-2xl p-10 text-center shadow-xs">
+          <Card variant="centered">
             <div className="w-12 h-12 rounded-2xl bg-neutral-100 flex items-center justify-center mx-auto mb-4 text-neutral-600">
               <UserIcon className="w-6 h-6" />
             </div>
@@ -304,26 +158,26 @@ export default function TrashPage() {
             >
               <span>{t("history.loginButton")}</span>
             </Link>
-          </div>
+          </Card>
         )}
 
         {/* Loading Skeleton */}
         {isLoading && (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div
+              <Card
                 key={i}
-                className="bg-white border border-neutral-200 rounded-xl p-5 shadow-2xs animate-pulse flex items-center justify-between"
+                variant="compact"
+                className="animate-pulse flex items-center justify-between"
               >
                 <div className="space-y-2 flex-1">
                   <div className="h-4 bg-neutral-100 rounded w-1/2" />
                   <div className="h-3 bg-neutral-100 rounded w-1/4" />
-                </div>
-                <div className="flex gap-2">
+                </div>                  <div className="flex gap-2">
                   <div className="w-8 h-8 bg-neutral-100 rounded-lg" />
                   <div className="w-8 h-8 bg-neutral-100 rounded-lg" />
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         )}
@@ -400,7 +254,7 @@ export default function TrashPage() {
               </div>
             ) : (
               /* Empty State */
-              <div className="bg-white border border-neutral-200 rounded-2xl p-12 text-center shadow-xs">
+              <Card variant="centered" className="p-12">
                 <div className="w-12 h-12 rounded-2xl bg-neutral-100 flex items-center justify-center mx-auto mb-4 text-neutral-500">
                   <Trash2 className="w-6 h-6" />
                 </div>
@@ -417,16 +271,11 @@ export default function TrashPage() {
                   <ArrowLeft className="w-3.5 h-3.5" />
                   <span>{t("trash.backToHistory")}</span>
                 </Link>
-              </div>
+              </Card>
             )}
           </>
         )}
       </main>
-
-      {/* Minimal Footer */}
-      <footer className="border-t border-neutral-200 bg-white py-6 text-center text-xs text-neutral-500">
-        {t("footer.tagline")}
-      </footer>
 
       {/* Permanent Delete Confirmation Dialog */}
       {permanentDeleteTarget && (

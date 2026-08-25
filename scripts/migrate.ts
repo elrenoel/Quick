@@ -14,7 +14,7 @@ async function runMigrate() {
   const dbUrl = process.env.DATABASE_URL;
 
   console.log("\n========================================");
-  console.log("🚀 Quick DB Migration Runner (Neon PostgreSQL)");
+  console.log("🚀 Yoohoo DB Migration Runner (Neon PostgreSQL)");
   console.log("========================================\n");
 
   if (!dbUrl || dbUrl.trim() === "") {

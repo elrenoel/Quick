@@ -60,7 +60,7 @@ export const verification = pgTable("verification", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// ─── 2. Quick Application Tables ─────────────────────────────────────────────
+// ─── 2. Yoohoo Application Tables ─────────────────────────────────────────────
 
 // Documents Table (Mulai Stage 6.5, user_id NOT NULL)
 export const documents = pgTable("documents", {

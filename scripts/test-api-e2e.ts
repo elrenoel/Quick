@@ -15,7 +15,7 @@ import { generateStudyMaterials } from "../src/lib/ai";
 
 async function runE2ETest() {
   console.log("\n============================================================");
-  console.log("🧪 Quick Backend API Integration Test (with User Auth)");
+  console.log("🧪 Yoohoo Backend API Integration Test (with User Auth)");
   console.log("============================================================\n");
 
   const pdfPath = path.join(process.cwd(), "sample-materials", "sample-lecture.pdf");

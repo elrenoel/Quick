@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   ArrowRight,
   RotateCw,
   ChevronLeft,
@@ -12,11 +11,13 @@ import {
   Play,
   Loader2,
 } from "lucide-react";
-import ErrorState from "@/components/ErrorState";
+import ErrorState from "@/components/ui/ErrorState";
 import { useI18n } from "@/lib/i18n";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { MOCK_DOCUMENT } from "@/lib/mock-data";
+import Navbar from "@/components/layout/Navbar";
+import Button from "@/components/ui/Button";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Flashcard {
@@ -145,32 +146,16 @@ export default function FlashcardsPage() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
-      {/* Top Navbar */}
-      <header className="border-b border-neutral-200 bg-white/90 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-              title={t("error.backToHome")}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Link>
-            <div>
-              <h1 className="font-semibold text-neutral-900 text-sm sm:text-base tracking-tight truncate max-w-[200px] sm:max-w-md">
-                {isLoading ? (
-                  <span className="inline-block h-4 w-40 rounded bg-neutral-100 animate-pulse" />
-                ) : (
-                  documentTitle
-                )}
-              </h1>
-              <p className="text-[11px] text-neutral-500 font-mono">
-                Flashcards
-                {!isLoading && cards.length > 0 && ` · ${cards.length} ${t("flashcards.konsep")}`}
-              </p>
-            </div>
-          </div>
-
+      <Navbar
+        backHref="/"
+        title={isLoading ? undefined : documentTitle}
+        subtitle={
+          <>
+            Flashcards
+            {!isLoading && cards.length > 0 && ` · ${cards.length} ${t("flashcards.konsep")}`}
+          </>
+        }
+        rightContent={
           <Link
             href={`/documents/${docId}/quiz`}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 transition active:scale-[0.98] shadow-xs"
@@ -178,16 +163,16 @@ export default function FlashcardsPage() {
             <span>{t("flashcards.startQuiz")}</span>
             <Play className="w-3.5 h-3.5 fill-current" />
           </Link>
-        </div>
-
-        {/* Top Progress Bar */}
-        <div className="w-full bg-neutral-100 h-1">
-          <div
-            className="bg-neutral-900 h-1 transition-all duration-300 ease-out"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </header>
+        }
+        bottomBar={
+          <div className="w-full bg-neutral-100 h-1">
+            <div
+              className="bg-neutral-900 h-1 transition-all duration-300 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        }
+      />
 
       {/* Main Content */}
       <main className="max-w-xl mx-auto px-6 py-10 flex-1 w-full flex flex-col items-center justify-center">
@@ -282,31 +267,36 @@ export default function FlashcardsPage() {
 
             {/* Navigation Controls */}
             <div className="flex items-center justify-between w-full mt-8 gap-4">
-              <button
+              <Button
+                variant="secondary"
+                size="lg"
                 onClick={handlePrev}
                 disabled={currentIndex === 0}
-                className="flex-1 py-3 px-4 rounded-xl bg-white border border-neutral-200 text-xs sm:text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:pointer-events-none transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+                className="flex-1"
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span>{t("flashcards.previous")}</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
+                size="lg"
                 onClick={handleToggleFlip}
-                className="py-3 px-4 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-xs sm:text-sm font-medium text-neutral-800 transition flex items-center justify-center gap-2 cursor-pointer"
+                className="bg-neutral-100 hover:bg-neutral-200 text-neutral-800"
               >
                 <RotateCw className="w-4 h-4" />
                 <span className="hidden sm:inline">{t("flashcards.flipButton")}</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="primary"
+                size="lg"
                 onClick={handleNext}
                 disabled={currentIndex === cards.length - 1}
-                className="flex-1 py-3 px-4 rounded-xl bg-neutral-900 text-white text-xs sm:text-sm font-medium hover:bg-neutral-800 disabled:opacity-40 disabled:pointer-events-none transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                className="flex-1"
               >
                 <span>{t("flashcards.next")}</span>
                 <ChevronRight className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             {/* End of Deck CTA */}
@@ -328,10 +318,6 @@ export default function FlashcardsPage() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
-        Quick MVP — Flashcard Mode
-      </footer>
     </div>
   );
 }

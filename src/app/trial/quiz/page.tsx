@@ -10,9 +10,11 @@ import {
   LogIn,
   UserPlus,
 } from "lucide-react";
-import ErrorState from "@/components/ErrorState";
+import ErrorState from "@/components/ui/ErrorState";
 import { useI18n } from "@/lib/i18n";
-import SubmitConfirmDialog from "@/components/SubmitConfirmDialog";
+import SubmitConfirmDialog from "@/components/ui/SubmitConfirmDialog";
+import Navbar from "@/components/layout/Navbar";
+import Button from "@/components/ui/Button";
 
 interface QuizQuestion {
   question: string;
@@ -39,7 +41,7 @@ export default function TrialQuizPage() {
   const optionLabels = ["A", "B", "C", "D"];
 
   useEffect(() => {
-    const raw = localStorage.getItem("quick_trial_data");
+    const raw = localStorage.getItem("yoohoo_trial_data");
     if (!raw) {
       setNotFound(true);
       return;
@@ -116,42 +118,28 @@ export default function TrialQuizPage() {
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col justify-between text-neutral-900 selection:bg-neutral-900 selection:text-white">
-      {/* Top Navbar */}
-      <header className="border-b border-neutral-200 bg-white/90 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/trial/flashcards"
-              className="w-8 h-8 rounded-lg bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-700 transition"
-              title={t("trial.backToFlashcard")}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Link>
-            <div>
-              <h1 className="font-semibold text-neutral-900 text-sm sm:text-base tracking-tight truncate max-w-[180px] sm:max-w-md">
-                {trialData.title}
-              </h1>
-              <p className="text-[11px] text-neutral-500 font-mono">
-                {t("trial.quizTitle")} 00b7 {questions.length}
-              </p>
-            </div>
+      <Navbar
+        backHref="/trial/flashcards"
+        title={trialData.title}
+        subtitle={
+          <>
+            {t("trial.quizTitle")} · {questions.length}
+          </>
+        }
+        rightContent={
+          <span className="text-xs font-mono text-neutral-500 bg-neutral-100 px-3 py-1 rounded-full border border-neutral-200">
+            {answeredCount}/{questions.length}
+          </span>
+        }
+        bottomBar={
+          <div className="w-full bg-neutral-100 h-1">
+            <div
+              className="bg-neutral-900 h-1 transition-all duration-300 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-neutral-500 bg-neutral-100 px-3 py-1 rounded-full border border-neutral-200">
-              {answeredCount}/{questions.length}
-            </span>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="w-full bg-neutral-100 h-1">
-          <div
-            className="bg-neutral-900 h-1 transition-all duration-300 ease-out"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-      </header>
+        }
+      />
 
       {/* Trial Notice Banner */}
       <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5">
@@ -228,38 +216,37 @@ export default function TrialQuizPage() {
 
         {/* Nav Controls */}
         <div className="flex items-center justify-between gap-4">
-          <button
+          <Button
+            variant="secondary"
+            size="lg"
             onClick={() => setCurrentIndex((p) => Math.max(0, p - 1))}
             disabled={currentIndex === 0}
-            className="py-3 px-5 rounded-xl bg-white border border-neutral-200 text-xs sm:text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-40 disabled:pointer-events-none transition flex items-center gap-2 cursor-pointer shadow-2xs"
           >
             <ChevronLeft className="w-4 h-4" />
             <span>{t("trial.previous")}</span>
-          </button>
+          </Button>
 
           {currentIndex === questions.length - 1 ? (
-            <button
+            <Button
+              variant="primary"
+              size="lg"
               onClick={() => setShowConfirmDialog(true)}
-              className="py-3 px-6 rounded-xl bg-neutral-900 text-white text-xs sm:text-sm font-medium hover:bg-neutral-800 active:scale-[0.99] transition flex items-center gap-2 cursor-pointer shadow-xs"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>{t("quiz.finishAndScore")}</span>
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
+              variant="primary"
+              size="lg"
               onClick={() => setCurrentIndex((p) => Math.min(questions.length - 1, p + 1))}
-              className="py-3 px-6 rounded-xl bg-neutral-900 text-white text-xs sm:text-sm font-medium hover:bg-neutral-800 active:scale-[0.99] transition flex items-center gap-2 cursor-pointer shadow-xs"
             >
               <span>{t("trial.next")}</span>
               <ChevronRight className="w-4 h-4" />
-            </button>
+            </Button>
           )}
         </div>
       </main>
-
-      <footer className="border-t border-neutral-200 bg-white py-4 text-center text-xs text-neutral-500">
-        {t("footer.tagline")}
-      </footer>
 
       {/* Submit Confirmation Dialog */}
       {showConfirmDialog && (

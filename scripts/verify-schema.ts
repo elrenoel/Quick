@@ -12,7 +12,7 @@ async function verifySchema() {
   const dbUrl = process.env.DATABASE_URL;
 
   console.log("\n========================================");
-  console.log("🔍 Quick DB Schema Verification");
+  console.log("🔍 Yoohoo DB Schema Verification");
   console.log("========================================\n");
 
   if (!dbUrl || dbUrl.trim() === "") {

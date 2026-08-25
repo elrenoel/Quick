@@ -5,6 +5,7 @@ import { LanguageProvider } from "@/lib/i18n";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import QueryProvider from "@/lib/query-provider";
 import { SessionProvider } from "@/lib/session-provider";
+import Footer from "@/components/layout/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Quick — AI Flashcard & Quiz Generator",
+  title: "Yoohoo — AI Flashcard & Quiz Generator",
   description: "Ubah materi PDF kuliah & buku jadi flashcard dan quiz interaktif otomatis dengan AI.",
 };
 
@@ -32,7 +33,10 @@ export default function RootLayout({
         <ErrorBoundary>
           <QueryProvider>
             <SessionProvider>
-              <LanguageProvider>{children}</LanguageProvider>
+              <LanguageProvider>
+                {children}
+                <Footer />
+              </LanguageProvider>
             </SessionProvider>
           </QueryProvider>
         </ErrorBoundary>

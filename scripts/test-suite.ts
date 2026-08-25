@@ -52,7 +52,7 @@ let testQuizQuestionIds: string[] = [];
 
 async function runTests() {
   console.log("\n========================================");
-  console.log("  Quick API Test Suite");
+  console.log("  Yoohoo API Test Suite");
   console.log("========================================");
 
   // ── SETUP ────────────────────────────────────────────────────────────────────
