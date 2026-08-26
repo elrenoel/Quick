@@ -318,7 +318,7 @@ export default function Navbar({
     <>
       <header className="bg-[#013528] sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          {leftSection}
+            {leftSection}
 
           {/* Default nav links (logged-in users, non-document layout) — desktop only */}
           {session?.user && !backHref && (
@@ -349,7 +349,6 @@ export default function Navbar({
 
           {/* Mobile: hamburger button */}
           <div className="flex sm:hidden items-center gap-2">
-            {rightContent}
             {hamburgerButton}
           </div>
         </div>

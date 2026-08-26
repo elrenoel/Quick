@@ -204,11 +204,21 @@ export default function FlashcardsPage() {
           <>
             {/* Counter Badge */}
             <div className="flex items-center justify-between w-full mb-6">
-              <span className="text-xs font-mono text-neutral-500 bg-white px-3 py-1 rounded-full border border-neutral-200 shadow-2xs">
-                {t("flashcards.kartu")} {currentIndex + 1} {t("flashcards.of")} {cards.length}
-              </span>
+              <div className="flex flex-1 justify-between w-full">
+                <span className="text-xs font-mono text-neutral-500 bg-white px-3 py-1 rounded-full border border-neutral-200 shadow-2xs">
+                  {t("flashcards.kartu")} {currentIndex + 1} {t("flashcards.of")} {cards.length}
+                </span>
+                <Link
+                  href={`/documents/${docId}/quiz`}
+                  className="inline-flex sm:hidden items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 transition active:scale-[0.98] shadow-xs"
+                >
+                  <span>{t("flashcards.startQuiz")}</span>
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                </Link>
+              </div>
+              
 
-              <span className="text-xs text-neutral-400 font-mono hidden sm:inline">
+              <span className="text-xs text-neutral-400 font-mono hidden sm:inline sm:flex-2  ">
                 {t("flashcards.kbTips")}
               </span>
             </div>
